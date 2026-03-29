@@ -1,0 +1,8 @@
+1. RESPONSE OVERVIEW
+We will provide monthly status reports that include milestones, open risks, staffing updates, and the next set of deliverables.
+
+2. SECURITY APPROACH
+We encrypt all customer data at rest using AES-256 managed keys within our hosted environment.
+
+3. STAFFING PLAN
+Our support team provides business-hours support from 8:00 AM to 5:00 PM local time, primarily through remote delivery with onsite escalation when requested.

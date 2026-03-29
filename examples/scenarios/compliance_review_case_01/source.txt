@@ -1,0 +1,8 @@
+1. SERVICE REPORTING
+The contractor shall provide monthly status reports summarizing milestones, open risks, staffing changes, and upcoming deliverables.
+
+2. DATA PROTECTION
+The contractor must encrypt customer data at rest using AES-256 or equivalent FIPS-validated controls.
+
+3. SUPPORT HOURS
+The contractor shall provide onsite support coverage Monday through Friday from 8:00 AM to 5:00 PM local time.
