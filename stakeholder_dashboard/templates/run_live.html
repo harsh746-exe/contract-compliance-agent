@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Live Run Replay</h2>
+    <p class="cc-status">Watch the agent team analyze documents step by step for <strong>{{ scope }}</strong>.</p>
+
+    <div class="replay-controls">
+      <button id="btn-play" class="btn-sm btn-outline" type="button">▶ Play</button>
+      <button id="btn-pause" class="btn-sm btn-outline" type="button">⏸ Pause</button>
+      <button id="btn-skip" class="btn-sm btn-outline" type="button">⏭ Skip to End</button>
+      <label>
+        Speed
+        <select id="speed-select">
+          <option value="1000">Normal</option>
+          <option value="500">Fast</option>
+          <option value="2000">Slow</option>
+          <option value="100">Instant</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="agent-bar" class="agent-status-bar"></div>
+
+    <div id="event-timeline" class="timeline replay-timeline"></div>
+  </section>
+
+  <section id="current-plan" class="planning-highlight" hidden>
+    <div class="plan-step-number"></div>
+    <div class="plan-action"></div>
+    <div class="plan-reasoning"></div>
+    <div class="plan-confidence"></div>
+  </section>
+
+  <script>
+    let events = [];
+    let currentIndex = 0;
+    let playInterval = null;
+    let speed = 1000;
+
+    async function loadEvents() {
+      const resp = await fetch('/runs/{{ scope }}/events');
+      const data = await resp.json();
+      events = data.events || [];
+      document.getElementById('btn-play').textContent = `▶ Play (${events.length} events)`;
+    }
+
+    function startReplay() {
+      if (playInterval) {
+        clearInterval(playInterval);
+      }
+      playInterval = setInterval(() => {
+        if (currentIndex >= events.length) {
+          clearInterval(playInterval);
+          playInterval = null;
+          return;
+        }
+        renderEvent(events[currentIndex]);
+        currentIndex += 1;
+      }, speed);
+    }
+
+    function pauseReplay() {
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+      }
+    }
+
+    function skipToEnd() {
+      pauseReplay();
+      while (currentIndex < events.length) {
+        renderEvent(events[currentIndex]);
+        currentIndex += 1;
+      }
+    }
+
+    function setSpeed(ms) {
+      speed = parseInt(ms, 10);
+      if (playInterval) {
+        startReplay();
+      }
+    }
+
+    function renderEvent(event) {
+      const timeline = document.getElementById('event-timeline');
+      const el = document.createElement('div');
+      el.className = 'timeline-event event-' + (event.type || 'system');
+
+      let icon = '📋';
+      let body = '';
+      if (event.type === 'planning') {
+        icon = '🧠';
+        const mode = event.planner_mode || 'unknown';
+        const confidence = event.confidence || {};
+        body = `
+          <div class="event-header">${icon} <strong>Step ${event.step || '?'}: ${event.action || 'Plan'}</strong>
+            <span class="badge badge-${mode}">${String(mode).toUpperCase()}</span>
+          </div>
+          <div class="event-reasoning">${event.reasoning || ''}</div>
+          ${confidence && confidence.mean !== undefined ? `<div class="event-confidence">Confidence: ${confidence.min} - ${confidence.max} (mean ${confidence.mean})</div>` : ''}
+          ${(event.target_requirements || []).length ? `<div class="event-targets">Targeting: ${(event.target_requirements || []).join(', ')}</div>` : ''}
+        `;
+        updatePlanHighlight(event);
+      } else if (event.type === 'agent_lifecycle') {
+        icon = event.action === 'spawn' ? '🟢' : '🔴';
+        body = `<div class="event-header">${icon} ${event.description || ''}</div>`;
+        updateAgentBar(event);
+      } else if (event.type === 'delegation') {
+        icon = '📤';
+        body = `<div class="event-header">${icon} ${event.description || ''}</div><div class="event-detail">${event.detail || ''}</div>`;
+      } else if (event.type === 'result') {
+        icon = '📥';
+        body = `<div class="event-header">${icon} ${event.description || ''}</div><div class="event-detail">${event.detail || ''}</div>`;
+      } else if (event.type === 'skill_use') {
+        icon = '⚡';
+        body = `<div class="event-header">${icon} ${event.description || ''}</div>`;
+      } else if (event.type === 'skill_result') {
+        icon = '✅';
+        body = `<div class="event-header">${icon} ${event.description || ''}</div>`;
+      } else {
+        body = `<div class="event-header">${icon} ${(event.description || 'System event')}</div>`;
+      }
+
+      el.innerHTML = body;
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(8px)';
+      timeline.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.transition = 'all 0.25s ease';
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      });
+      timeline.scrollTop = timeline.scrollHeight;
+    }
+
+    function updateAgentBar(event) {
+      const bar = document.getElementById('agent-bar');
+      const agentId = String(event.agent || 'unknown');
+      const domId = 'agent-pill-' + agentId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      let pill = document.getElementById(domId);
+
+      if (!pill && event.action === 'spawn') {
+        pill = document.createElement('span');
+        pill.id = domId;
+        pill.className = 'agent-pill active';
+        pill.textContent = agentId.replace('_agent', '').replace(/_/g, ' ');
+        bar.appendChild(pill);
+      }
+
+      if (pill && event.action === 'terminate') {
+        pill.classList.remove('active');
+        pill.classList.add('terminated');
+      }
+    }
+
+    function updatePlanHighlight(event) {
+      const panel = document.getElementById('current-plan');
+      panel.hidden = false;
+      panel.querySelector('.plan-step-number').textContent = `Step ${event.step || '?'}`;
+      panel.querySelector('.plan-action').textContent = event.action || 'Planning';
+      panel.querySelector('.plan-reasoning').textContent = event.reasoning || '';
+      const confidence = event.confidence || {};
+      panel.querySelector('.plan-confidence').textContent =
+        confidence.mean !== undefined ? `Confidence: ${confidence.min} - ${confidence.max} (mean ${confidence.mean})` : '';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadEvents();
+      document.getElementById('btn-play').addEventListener('click', startReplay);
+      document.getElementById('btn-pause').addEventListener('click', pauseReplay);
+      document.getElementById('btn-skip').addEventListener('click', skipToEnd);
+      document.getElementById('speed-select').addEventListener('change', (event) => setSpeed(event.target.value));
+    });
+  </script>
+{% endblock %}

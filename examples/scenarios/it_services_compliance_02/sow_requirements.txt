@@ -1,0 +1,34 @@
+Statement of Work (SOW)
+Enterprise IT Managed Services Support
+
+This Statement of Work defines service outcomes, controls, and governance standards for enterprise IT operations in support of mission systems.
+
+Requirement 01 - Help Desk Service Levels: The Contractor shall acknowledge and begin triage of Priority 1 incidents within 15 minutes of ticket creation, Priority 2 incidents within 1 hour, and Priority 3 incidents within 4 hours, as measured from system time stamps in the service management platform.
+
+Requirement 02 - Service Availability: The Contractor shall maintain monthly production service availability of at least 99.95 percent for in-scope systems, excluding only pre-approved planned maintenance windows documented in the government change calendar.
+
+Requirement 03 - Security Certifications: The Contractor shall hold and maintain, for the full period of performance, a current FedRAMP Moderate authorization and a current SOC 2 Type II attestation applicable to the services provided under this order.
+
+Requirement 04 - Staff Qualifications: The Contractor must ensure all engineers assigned to this effort hold an active CompTIA Security+ certification (or government-approved equivalent), and the designated Technical Lead must hold an active CISSP certification.
+
+Requirement 05 - Monthly Performance Reporting: The Contractor shall deliver a monthly performance report within 5 business days after each month-end that includes SLA attainment metrics, a categorized incident summary, and forward-looking capacity trend analysis.
+
+Requirement 06 - Controlled Unclassified Information Handling: The Contractor shall encrypt all CUI at rest using AES-256, encrypt all CUI in transit using TLS 1.2 or higher, and store all CUI exclusively within data centers located in the Continental United States (CONUS).
+
+Requirement 07 - Incident Response Notification: The Contractor must maintain a written incident response plan and shall notify the Contracting Officer's Representative (COR) of any critical incident within 30 minutes of initial detection.
+
+Requirement 08 - Personnel Screening: The Contractor shall ensure all personnel assigned to this task order possess an active Public Trust clearance or higher prior to beginning performance under this SOW.
+
+Requirement 09 - Transition-In: The Contractor shall provide, no later than contract start, a 90-day transition-in plan that includes a knowledge transfer schedule, a defined parallel-operations period, and documented transition risk mitigation actions.
+
+Requirement 10 - Transition-Out: The Contractor shall provide 120 days of transition-out support at contract conclusion, including complete data migration assistance and documentation handoff to the successor provider or government team.
+
+Requirement 11 - Key Personnel Controls: The Program Manager and Technical Lead are designated key personnel, and any proposed replacement must be submitted with at least 30 days advance notice and is subject to written government approval.
+
+Requirement 12 - Disaster Recovery: The Contractor shall maintain and annually test a disaster recovery plan with recovery point objective (RPO) of no more than 4 hours and recovery time objective (RTO) of no more than 8 hours.
+
+Requirement 13 - Patch and Vulnerability Management: The Contractor shall apply critical security patches within 72 hours of vendor release and must validate all patches in a staging environment before production deployment.
+
+Requirement 14 - Asset Management: The Contractor shall maintain an auditable inventory of all hardware and software assets supporting this effort and shall perform and document inventory reconciliation at least quarterly.
+
+Requirement 15 - Continuous Improvement: The Contractor shall submit a minimum of three process improvement proposals per contract year, each including measurable impact metrics and implementation feasibility.

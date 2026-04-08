@@ -29,11 +29,16 @@ cp .env.example .env
 
 Required for live model-backed usage:
 
-- `OPENAI_API_KEY`
+- `LLM_PROVIDER` and provider credentials
+
+Supported provider paths:
+
+- `LLM_PROVIDER=deepinfra` with `DEEPINFRA_API_KEY` or `DEEPIN_API_KEY`
+- `LLM_PROVIDER=openai` with `OPENAI_API_KEY`
 
 Optional:
 
-- `OPENAI_MODEL` to override the default model
+- `LLM_MODEL` to override the provider default model
 - `RUN_LIVE_LLM_TESTS=1` to opt into the guarded live smoke test
 
 ## Developer Workflow
@@ -51,6 +56,25 @@ Optional live smoke test:
 ```bash
 RUN_LIVE_LLM_TESTS=1 pytest -q -m live
 ```
+
+## Stakeholder Dashboard
+
+Launch the non-technical review dashboard locally:
+
+```bash
+./.venv/bin/python -m uvicorn stakeholder_dashboard:app --reload
+```
+
+Then open `http://127.0.0.1:8000`.
+
+The dashboard includes:
+
+- a realistic stakeholder demo case
+- step-by-step agent trace and evidence review
+- upload flow for a source document and response package
+- downloadable JSON, CSV, and Markdown artifacts
+
+Deploy on Render with the included [render.yaml](/Volumes/HarshT9/Agentic%20AI/Contract%20compliance%20agent/render.yaml) and [Dockerfile](/Volumes/HarshT9/Agentic%20AI/Contract%20compliance%20agent/Dockerfile). Set `DEEPIN_API_KEY` or `DEEPINFRA_API_KEY` in the service environment before the first run.
 
 ## Usage
 

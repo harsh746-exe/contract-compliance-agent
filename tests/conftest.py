@@ -88,3 +88,31 @@ def evidence_dicts(evidence_objects):
 @pytest.fixture
 def decision_dicts(decision_objects):
     return [asdict(dec) for dec in decision_objects]
+
+
+@pytest.fixture
+def agentic_text_documents(tmp_path):
+    source = tmp_path / "sample_rfp_source.txt"
+    response = tmp_path / "sample_response.txt"
+    prior = tmp_path / "prior_contract.txt"
+
+    source.write_text(
+        "1. REQUIREMENTS\n"
+        "The contractor shall provide monthly status reports. "
+        "The contractor must maintain weekday support coverage from 6:00 AM to 8:00 PM Central Time."
+    )
+    response.write_text(
+        "1. RESPONSE\n"
+        "We provide monthly status reports to the client. "
+        "Our support team operates from 6:00 AM to 8:00 PM Central Time on weekdays."
+    )
+    prior.write_text(
+        "1. PRIOR CONTRACT\n"
+        "The prior agreement required monthly reporting and business-hours support coverage."
+    )
+
+    return {
+        "source": str(source),
+        "response": str(response),
+        "prior": str(prior),
+    }

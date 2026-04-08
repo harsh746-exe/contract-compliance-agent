@@ -1,0 +1,44 @@
+1. DELIVERY MODEL
+We will issue a weekly incident digest and a monthly executive governance package covering SLA attainment, open risks, staffing updates, subcontractor performance, and the next implementation milestones.
+
+2. SECURITY APPROACH
+Our managed platform runs in a FedRAMP Moderate environment, and we maintain a control crosswalk mapped to NIST SP 800-53 Rev. 5 families for the deployed services.
+
+3. ACCESS CONTROLS
+We enforce multifactor authentication for privileged accounts and support PIV-enabled single sign-on for government administrators accessing the management portal.
+
+4. SERVICE LEVELS
+We commit to 99.95 percent monthly availability and maintain an operations bridge to coordinate restoration activities.
+
+5. INCIDENT MANAGEMENT
+Our service desk acknowledges Severity 1 incidents within 15 minutes and targets restoration within 4 hours for platform outages.
+
+6. SECURITY MONITORING
+All platform and device logs are forwarded to the enterprise SIEM and are retained online for 365 days for search and investigation.
+
+7. VULNERABILITY REMEDIATION
+We perform weekly authenticated scans and close critical vulnerabilities within 10 calendar days unless the government approves a documented exception.
+
+8. STAFFING PLAN
+We will provide one onsite program manager and three cleared network engineers, with a fourth engineer available remotely for surge support.
+
+9. TRANSITION EXECUTION
+We will deliver a 30-day transition plan that includes milestone owners, rehearsal checkpoints, and rollback procedures for the cutover weekend.
+
+10. CMDB DISCIPLINE
+Production changes are recorded in the asset inventory within 2 business days through our automated configuration workflow.
+
+11. RESILIENCE
+We maintain a disaster recovery capability with a tested 2-hour recovery target and conduct an annual failover exercise with the customer.
+
+12. ENABLEMENT
+We will deliver two administrator workshops and four user familiarization sessions during the first 45 days of performance.
+
+13. CONTRACT COMPLIANCE
+Our program office follows FAR 52.204-21 safeguarding requirements and will administer commercial services consistent with FAR 52.212-4 terms.
+
+14. SMALL BUSINESS PLAN
+We provide a monthly subcontracting report identifying small business participation, variances, and corrective actions.
+
+15. SOFTWARE SUPPLY CHAIN
+We will provide an SBOM for the core monitoring platform but not for third-party utility tools unless specifically requested after award.

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Upload Documents</h2>
+    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="upload-drop-zone" data-loading-copy="Uploading documents...">
+      <p>Drag and drop files here, or choose files to upload into <code>data/uploads/</code>.</p>
+      <input type="file" name="files" multiple required />
+      <button class="btn-sm" type="submit">Upload Files</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Scenario Documents</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Document</th>
+          <th>Scenario</th>
+          <th>Role</th>
+          <th>Type</th>
+          <th>Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in inventory.scenario_documents %}
+          <tr class="toggle-row" data-target="doc-{{ loop.index }}">
+            <td>{{ doc.name }}</td>
+            <td>{{ doc.scenario }}</td>
+            <td>{{ doc.role_label }}</td>
+            <td>{{ doc.type }}</td>
+            <td>{{ doc.size_label }}</td>
+          </tr>
+          <tr id="doc-{{ loop.index }}" class="detail-row" hidden>
+            <td colspan="5">
+              <div class="detail-block">
+                <p><strong>Path:</strong> {{ doc.path }}</p>
+                <p><strong>Preview:</strong></p>
+                <pre>{{ doc.preview[:2000] }}</pre>
+                {% if doc.preview|length > 2000 %}
+                  <details>
+                    <summary>Show more</summary>
+                    <pre>{{ doc.preview[2000:] }}</pre>
+                  </details>
+                {% endif %}
+                <p><strong>Runs using this document:</strong></p>
+                {% if doc.usage %}
+                  <ul>
+                    {% for use in doc.usage %}
+                      <li>
+                        <a href="/runs/{{ use.scope }}">{{ use.run_id }}</a> · {{ use.role_label }}
+                        {% if use.requirements_extracted %} · {{ use.requirements_extracted }} requirements extracted{% endif %}
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p>Not used in any completed run yet.</p>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Uploaded Documents</h2>
+    {% if inventory.uploaded_documents %}
+      <table>
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Scenario</th>
+            <th>Role</th>
+            <th>Type</th>
+            <th>Size</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in inventory.uploaded_documents %}
+            <tr class="toggle-row" data-target="upload-doc-{{ loop.index }}">
+              <td>{{ doc.name }}</td>
+              <td>{{ doc.scenario }}</td>
+              <td>{{ doc.role_label }}</td>
+              <td>{{ doc.type }}</td>
+              <td>{{ doc.size_label }}</td>
+            </tr>
+            <tr id="upload-doc-{{ loop.index }}" class="detail-row" hidden>
+              <td colspan="5">
+                <div class="detail-block">
+                  <p><strong>Path:</strong> {{ doc.path }}</p>
+                  <pre>{{ doc.preview[:2000] }}</pre>
+                  {% if doc.preview|length > 2000 %}
+                    <details>
+                      <summary>Show more</summary>
+                      <pre>{{ doc.preview[2000:] }}</pre>
+                    </details>
+                  {% endif %}
+                  <p><strong>Runs using this document:</strong></p>
+                  {% if doc.usage %}
+                    <ul>
+                      {% for use in doc.usage %}
+                        <li>
+                          <a href="/runs/{{ use.scope }}">{{ use.run_id }}</a> · {{ use.role_label }}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p>Not used in any completed run yet.</p>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No uploaded documents yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

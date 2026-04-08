@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="cc-top">
+      <h2>{{ event.title }}</h2>
+      <a class="btn-sm btn-outline" href="/activity">Back to Activity</a>
+    </div>
+    <p>{{ event.comment }}</p>
+    <p><strong>Run:</strong> <a href="/runs/{{ run.scope }}">{{ run.run_id }}</a></p>
+    <p><strong>Timestamp:</strong> {{ event.timestamp_label }}</p>
+    <p><strong>Agent:</strong> {{ event.agent_label }}</p>
+  </section>
+
+  <section class="card">
+    <h2>Input</h2>
+    <pre>{{ event.input_json }}</pre>
+  </section>
+
+  <section class="card">
+    <h2>Output / Payload</h2>
+    <pre>{{ event.output_json if event.output_json != '{}' else event.payload_json }}</pre>
+  </section>
+
+  {% if related_requirement %}
+    <section class="card">
+      <h2>Linked Requirement</h2>
+      <p><strong>{{ related_requirement.id }}</strong> · {{ related_requirement.status }}</p>
+      <p>{{ related_requirement.text }}</p>
+      <p>{{ related_requirement.explanation }}</p>
+    </section>
+  {% endif %}
+{% endblock %}

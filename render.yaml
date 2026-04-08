@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: contract-compliance-dashboard
+    runtime: docker
+    plan: free
+    autoDeploy: true

@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .. import config
+from ..llm import build_default_chat_llm
 from ..memory.persistent_store import Evidence, Requirement
-from ..runtime import require_langchain_llm_runtime, require_retrieval_runtime
+from ..runtime import require_retrieval_runtime
 
 
 class SentenceTransformerEmbeddings:
@@ -35,14 +36,7 @@ class EvidenceRetrieverAgent:
         vector_store_factory: Optional[Callable[..., Any]] = None,
     ):
         if llm is None:
-            require_langchain_llm_runtime()
-            from langchain_openai import ChatOpenAI
-
-            self.llm = ChatOpenAI(
-                model=config.OPENAI_MODEL,
-                temperature=0.1,
-                api_key=config.OPENAI_API_KEY,
-            )
+            self.llm = build_default_chat_llm(temperature=0.1)
         else:
             self.llm = llm
 

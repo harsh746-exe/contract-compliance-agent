@@ -1,0 +1,14 @@
+1. REPORTING APPROACH
+We will issue a weekly incident digest and a monthly executive governance package that covers SLA attainment, open delivery risks, staffing updates, and the next implementation milestones.
+
+2. SECURITY CONTROLS
+Our platform encrypts customer data at rest with AES-256 and protects all external traffic with TLS 1.2 or higher. We also complete an annual third-party penetration test.
+
+3. SUPPORT MODEL
+Our managed services team provides live weekday support from 6:00 AM to 8:00 PM Central Time. Severity 1 incidents are acknowledged within 15 minutes and escalated immediately to the on-call response lead.
+
+4. RESILIENCE MODEL
+Our disaster recovery design supports a 4-hour recovery time objective. Database snapshots are replicated hourly across regions and retained for rapid restoration.
+
+5. ENABLEMENT PLAN
+We deliver administrator training workshops and publish end-user quick reference guides within the first 30 calendar days after project kickoff.

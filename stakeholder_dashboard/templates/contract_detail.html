@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">Pipeline</a> -> <span>{{ contract.title }}</span>
+</div>
+
+<div class="contract-detail-header">
+    <div class="cdh-left">
+        <span class="stage-badge badge {% if contract.stage in ['active', 'completed'] %}badge-compliant{% elif contract.stage in ['review', 'drafting'] %}badge-partial{% elif contract.stage == 'submitted' %}badge-fallback{% else %}badge-llm{% endif %}">
+            {{ stage.icon }} {{ stage.label }}
+        </span>
+        <h2>{{ contract.title }}</h2>
+        <div class="cdh-meta">
+            <span class="cdh-agency">{{ contract.agency }}</span>
+            <span class="cdh-sol">{{ contract.solicitation }}</span>
+            <span class="cdh-naics">NAICS {{ contract.naics }}</span>
+            <span class="cdh-value">{{ contract.value }}</span>
+        </div>
+    </div>
+    {% if contract.run_id %}
+    <div class="cdh-actions">
+        <a href="/runs/{{ contract.run_id }}" class="btn-sm">View Agent Analysis</a>
+        <a href="/runs/{{ contract.run_id }}/workflow" class="btn-sm btn-outline">Agent Workflow</a>
+    </div>
+    {% elif contract.stage == 'solicitation' %}
+    <div class="cdh-actions">
+        <a href="/run-upload" class="btn-sm btn-green">Start Agent Review</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <p class="contract-summary-text">{{ contract.summary }}</p>
+    <div class="contract-status-line">
+        <strong>Status:</strong> {{ contract.our_status }}
+    </div>
+    {% if contract.due_date %}
+    <div class="contract-due-line">
+        <strong>Due:</strong> {{ contract.due_date }}
+    </div>
+    {% endif %}
+</div>
+
+<div class="detail-grid">
+    <div class="detail-col">
+        <div class="card">
+            <h3>Contract Timeline</h3>
+            <div class="contract-timeline">
+                {% for event in contract.history | reverse %}
+                <div class="ct-event">
+                    <div class="ct-date">{{ event.date }}</div>
+                    <div class="ct-text">{{ event.event }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if contract.documents %}
+        <div class="card">
+            <h3>Documents</h3>
+            {% for doc in contract.documents %}
+            <div class="doc-row">
+                <span class="doc-icon">📄</span>
+                <span class="doc-name">{{ doc.name }}</span>
+                <span class="doc-role">{{ doc.role }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="detail-col">
+        {% if run %}
+        <div class="card">
+            <h3>🤖 Agent Team Analysis</h3>
+
+            {% if run.compliance_decisions %}
+            {% set decisions = run.compliance_decisions if run.compliance_decisions is iterable and run.compliance_decisions is not mapping else run.compliance_decisions.values() | list %}
+            <table class="compact-table">
+                <thead>
+                    <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for d in decisions %}
+                {% if d is mapping %}
+                    <tr>
+                        <td>{{ d.requirement_id }}</td>
+                        <td><span class="badge badge-{{ d.label }}">{{ d.label | replace('_', ' ') | title }}</span></td>
+                        <td>{{ "%.0f" | format((d.confidence or 0) * 100) }}%</td>
+                    </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            {% if run.workflow_result and run.workflow_result.planning_trace %}
+            <h4>Planning Trace</h4>
+            <div class="mini-timeline">
+                {% for step in run.workflow_result.planning_trace %}
+                <div class="mt-step">
+                    <span class="mt-num">{{ step.step }}</span>
+                    <span class="mt-action">{{ step.action | replace('dispatch_', '') | replace('_', ' ') | title }}</span>
+                    <span class="mt-badge badge-{{ step.planner_mode }}">{{ step.planner_mode }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        {% elif contract.performance %}
+        <div class="card">
+            <h3>📈 Performance Dashboard</h3>
+
+            {% if contract.performance.sla_metrics %}
+            <h4>SLA Performance</h4>
+            <table class="compact-table">
+                <thead>
+                    <tr><th>Metric</th><th>Target</th><th>Actual</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                {% for m in contract.performance.sla_metrics %}
+                <tr>
+                    <td>{{ m.name }}</td>
+                    <td>{{ m.target }}</td>
+                    <td><strong>{{ m.actual }}</strong></td>
+                    <td>
+                        {% if m.status == 'exceeded' %}
+                            <span class="perf-badge perf-exceeded">▲ Exceeded</span>
+                        {% elif m.status == 'met' %}
+                            <span class="perf-badge perf-met">● Met</span>
+                        {% else %}
+                            <span class="perf-badge perf-missed">▼ Below</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            {% if contract.performance.cpars is defined and contract.performance.cpars is mapping %}
+            <h4>CPARS Ratings</h4>
+            <div class="cpars-grid">
+                {% for area, rating in contract.performance.cpars.items() %}
+                <div class="cpars-item">
+                    <div class="cpars-area">{{ area | replace('_', ' ') | title }}</div>
+                    <div class="cpars-rating cpars-{{ rating | lower | replace(' ', '-') }}">{{ rating }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if contract.performance.migration_progress is defined %}
+            <h4>Migration Progress</h4>
+            {% set mp = contract.performance.migration_progress %}
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: {{ (mp.migrated / mp.total_workloads * 100) | round }}%">
+                    {{ mp.migrated }}/{{ mp.total_workloads }} ({{ (mp.migrated / mp.total_workloads * 100) | round }}%)
+                </div>
+            </div>
+            <div class="phase-list">
+                {% for phase in mp.phases %}
+                <div class="phase-item phase-{{ phase.status }}">
+                    <span class="phase-status">
+                        {% if phase.status == 'complete' %}✅{% elif phase.status == 'in_progress' %}🔄{% else %}⏳{% endif %}
+                    </span>
+                    {{ phase.name }} - {{ phase.workloads }} workloads
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if contract.performance.staffing is defined %}
+            <h4>Team</h4>
+            <div class="staffing-stats">
+                <span>{{ contract.performance.staffing.positions_filled }}/{{ contract.performance.staffing.total_fte }} positions filled</span>
+                <span>Turnover: {{ contract.performance.staffing.turnover_rate }}</span>
+                {% if contract.performance.staffing.key_personnel_stable %}
+                    <span class="perf-badge perf-met">Key personnel stable</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if contract.performance.recent_highlights is defined %}
+            <h4>Recent Highlights</h4>
+            {% for h in contract.performance.recent_highlights %}
+            <div class="highlight-item">✦ {{ h }}</div>
+            {% endfor %}
+            {% endif %}
+
+            {% if contract.performance.outcomes is defined %}
+            <h4>Key Outcomes</h4>
+            {% for o in contract.performance.outcomes %}
+            <div class="highlight-item">✦ {{ o }}</div>
+            {% endfor %}
+            {% endif %}
+
+            {% if contract.performance.risks is defined %}
+            <h4>Active Risks</h4>
+            {% for r in contract.performance.risks %}
+            <div class="risk-item">⚠️ {{ r }}</div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

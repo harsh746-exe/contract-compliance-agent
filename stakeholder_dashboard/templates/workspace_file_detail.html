@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="cc-top">
+      <h2>{{ workspace_file.name }}</h2>
+      <div class="cc-actions">
+        <a class="btn-sm btn-outline" href="/files">Back</a>
+        <a class="btn-sm btn-outline" href="{{ workspace_file.download_url }}">Download</a>
+        {% if workspace_file.can_delete %}
+          <form action="{{ workspace_file.delete_url }}" method="post" data-confirm="Delete this file?" class="inline-form">
+            <button class="btn-sm btn-outline" type="submit">Delete</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+    <p>{{ workspace_file.relative_path }}</p>
+  </section>
+
+  <section class="card">
+    <h2>Preview</h2>
+    {% if preview.kind == "csv" %}
+      <table>
+        <thead>
+          <tr>
+            {% for head in preview.headers %}
+              <th>{{ head }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview.rows %}
+            <tr>
+              {% for cell in row %}
+                <td>{{ cell }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <pre>{{ preview.text }}</pre>
+    {% endif %}
+  </section>
+{% endblock %}

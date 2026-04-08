@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="cc-top">
+      <h2>{{ file_entry.title }}</h2>
+      <div class="cc-actions">
+        <a class="btn-sm btn-outline" href="/files">Back to Files</a>
+        <a class="btn-sm btn-outline" href="{{ file_entry.download_url }}">Download</a>
+      </div>
+    </div>
+    <p><strong>Root:</strong> {{ file_entry.root_label }}</p>
+    <p><strong>Path:</strong> {{ file_entry.path_label }}</p>
+    <p><strong>Type:</strong> {{ file_entry.kind }} · {{ file_entry.size_label }}</p>
+  </section>
+
+  <section class="card">
+    <h2>Preview</h2>
+    <pre>{{ file_entry.preview }}</pre>
+  </section>
+{% endblock %}

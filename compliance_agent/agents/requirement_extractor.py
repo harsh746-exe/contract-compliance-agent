@@ -4,8 +4,8 @@ import re
 from typing import Any, Dict, List
 
 from .. import config
+from ..llm import build_default_chat_llm
 from ..memory.persistent_store import Requirement
-from ..runtime import require_langchain_llm_runtime
 
 
 def _build_chat_prompt_template():
@@ -15,14 +15,7 @@ def _build_chat_prompt_template():
 
 
 def _build_default_llm():
-    require_langchain_llm_runtime()
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=config.OPENAI_MODEL,
-        temperature=0.1,
-        api_key=config.OPENAI_API_KEY,
-    )
+    return build_default_chat_llm(temperature=0.1)
 
 
 class RequirementExtractorAgent:
@@ -88,7 +81,10 @@ JSON format:
             if section_text.strip():
                 try:
                     llm_requirements = self._extract_with_llm(section_text, citation, working_memory)
-                    all_requirements.extend(llm_requirements)
+                    if llm_requirements:
+                        all_requirements.extend(llm_requirements)
+                    else:
+                        all_requirements.extend(keyword_requirements)
                 except Exception as e:
                     if working_memory:
                         working_memory.log_error(f"LLM extraction failed for section {section_title}: {e}")

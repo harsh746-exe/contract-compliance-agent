@@ -3,19 +3,12 @@
 from typing import Dict, List
 
 from .. import config
+from ..llm import build_default_chat_llm
 from ..memory.persistent_store import ComplianceDecision, Evidence
-from ..runtime import require_langchain_llm_runtime
 
 
 def _build_default_llm():
-    require_langchain_llm_runtime()
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=config.OPENAI_MODEL,
-        temperature=0.1,
-        api_key=config.OPENAI_API_KEY,
-    )
+    return build_default_chat_llm(temperature=0.1)
 
 
 class ConfidenceScorerAgent:

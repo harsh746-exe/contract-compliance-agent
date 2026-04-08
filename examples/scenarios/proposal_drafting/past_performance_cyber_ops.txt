@@ -1,0 +1,5 @@
+1. PAST PERFORMANCE ONE
+Northstar IT Services modernized a federal security operations center, implemented centralized log aggregation, and delivered monthly cyber risk reports for executive review.
+
+2. PAST PERFORMANCE TWO
+The team supported a continuous monitoring program that reduced incident response time, automated evidence collection for audits, and improved remediation tracking across infrastructure teams.

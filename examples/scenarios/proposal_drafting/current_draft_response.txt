@@ -1,0 +1,8 @@
+1. CURRENT DRAFT
+Our team offers an experienced cyber operations capability with strong executive oversight and a disciplined transition approach.
+
+2. TRANSITION THEMES
+We will manage knowledge transfer, staffing readiness, and operational risk during a 45-day transition period.
+
+3. REPORTING THEMES
+We intend to submit monthly reporting on incidents and remediation progress, but the current draft needs stronger detail on automation and named personnel.

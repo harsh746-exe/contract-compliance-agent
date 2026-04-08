@@ -1,0 +1,14 @@
+1. EXECUTIVE REPORTING
+The contractor shall deliver a weekly incident summary and a monthly executive governance report that includes service levels, open risks, staffing changes, and upcoming milestones.
+
+2. DATA SECURITY
+The contractor must encrypt customer data at rest using AES-256 and encrypt all external data transmissions using TLS 1.2 or higher.
+
+3. SERVICE DESK COVERAGE
+The contractor shall provide weekday support coverage from 6:00 AM to 8:00 PM Central Time and acknowledge Severity 1 incidents within 15 minutes.
+
+4. BUSINESS CONTINUITY
+The contractor shall maintain a disaster recovery posture with a recovery time objective of 4 hours and a recovery point objective of 15 minutes.
+
+5. KNOWLEDGE TRANSFER
+The contractor shall provide administrator training and publish end-user quick reference guides within 30 calendar days of implementation kickoff.

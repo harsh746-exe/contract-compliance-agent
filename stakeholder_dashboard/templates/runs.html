@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Completed Runs</h2>
+    {% if run_rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Run ID</th>
+            <th>Type</th>
+            <th>Requirements</th>
+            <th>Decisions</th>
+            <th>Accuracy</th>
+            <th>Steps</th>
+            <th>Planner</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in run_rows %}
+            <tr>
+              <td>{{ run.run_id }}</td>
+              <td>Compliance Review</td>
+              <td>{{ run.requirements }}</td>
+              <td>{{ run.decisions }}</td>
+              <td>{% if run.accuracy is not none %}{{ "%.1f"|format(run.accuracy * 100) }}%{% else %}n/a{% endif %}</td>
+              <td>{{ run.steps }}</td>
+              <td>{% if run.planner_mode == "llm" %}<span class="badge badge-llm">LLM</span>{% else %}{{ run.planner_mode }}{% endif %}</td>
+              <td>{{ run.date_label }}</td>
+              <td>
+                <div class="cc-actions">
+                  <a class="btn-sm btn-outline" href="{{ run.view_url }}">View</a>
+                  <a class="btn-sm btn-outline" href="{{ run.workflow_url }}">Workflow</a>
+                  <a class="btn-sm btn-outline" href="{{ run.live_url }}">Replay</a>
+                  <a class="btn-sm btn-outline" href="{{ run.download_url }}">Artifacts</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No completed runs found.</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,5 @@
+1. LEGACY DELIVERY NOTES
+The prior services contract required monthly governance reporting, AES-256 encryption at rest, and business-hours support coverage for production incidents.
+
+2. TRANSITION CONTEXT
+The incumbent provider operated with a 6-hour recovery time objective and a one-hour recovery point objective, which the new procurement seeks to improve.

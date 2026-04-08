@@ -1,5 +1,6 @@
 """Chunking utilities for document text."""
 
+import re
 from typing import List, Dict, Any, Union
 from .document_parser import DocumentChunk
 from .. import config
@@ -25,10 +26,8 @@ def chunk_text_by_size(chunks: List[Union[DocumentChunk, Dict[str, Any]]], max_t
         # Handle both DocumentChunk objects and dicts
         if isinstance(chunk, dict):
             text = chunk.get("text", "")
-            chunk_obj = None
         else:
             text = chunk.text
-            chunk_obj = chunk
         
         # Rough token estimation (1 token ≈ 4 characters)
         estimated_tokens = len(text) // 4
@@ -53,6 +52,21 @@ def chunk_text_by_size(chunks: List[Union[DocumentChunk, Dict[str, Any]]], max_t
     return new_chunks
 
 
+def _estimate_tokens(text: str) -> int:
+    return max(1, len(re.findall(r"\S+", text)))
+
+
+def _split_oversized_sentence(sentence: str, max_tokens: int) -> List[str]:
+    words = sentence.split()
+    if len(words) <= max_tokens:
+        return [sentence]
+    return [
+        " ".join(words[index:index + max_tokens]).strip()
+        for index in range(0, len(words), max_tokens)
+        if " ".join(words[index:index + max_tokens]).strip()
+    ]
+
+
 def _split_chunk(chunk: Union[DocumentChunk, Dict[str, Any]], max_tokens: int) -> List[Dict[str, Any]]:
     """Split a chunk into smaller pieces."""
     split_chunks = []
@@ -73,16 +87,19 @@ def _split_chunk(chunk: Union[DocumentChunk, Dict[str, Any]], max_tokens: int) -
         page_range = chunk.page_range
         metadata = chunk.metadata.copy()
     
-    sentences = text.split('. ')
+    raw_sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", text) if sentence.strip()]
+    sentences: List[str] = []
+    for sentence in raw_sentences or [text]:
+        sentences.extend(_split_oversized_sentence(sentence, max_tokens))
     current_text = []
     current_tokens = 0
-    
+
     for sentence in sentences:
-        sentence_tokens = len(sentence) // 4
-        
+        sentence_tokens = _estimate_tokens(sentence)
+
         if current_tokens + sentence_tokens > max_tokens and current_text:
             # Create chunk from accumulated text
-            chunk_text = '. '.join(current_text) + '.'
+            chunk_text = ' '.join(current_text).strip()
             split_chunks.append({
                 "chunk_id": f"{chunk_id}_part_{len(split_chunks)}",
                 "doc_type": doc_type,
@@ -96,10 +113,10 @@ def _split_chunk(chunk: Union[DocumentChunk, Dict[str, Any]], max_tokens: int) -
         
         current_text.append(sentence)
         current_tokens += sentence_tokens
-    
+
     # Add remaining text
     if current_text:
-        chunk_text = '. '.join(current_text)
+        chunk_text = ' '.join(current_text).strip()
         split_chunks.append({
             "chunk_id": f"{chunk_id}_part_{len(split_chunks)}",
             "doc_type": doc_type,

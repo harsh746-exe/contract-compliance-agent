@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Agent Registry</h2>
+    <p class="cc-status">Latest run: {% if registry.latest_run %}{{ registry.latest_run.run_id }}{% else %}n/a{% endif %}</p>
+    <div class="contract-grid">
+      {% for agent in registry.agents %}
+        <article class="agent-card">
+          <h3>{{ agent.name }}</h3>
+          <p><strong>Role:</strong> {{ agent.role }}</p>
+          <p>{{ agent.description }}</p>
+          <p><strong>Status:</strong> {{ agent.status }}</p>
+          <p><strong>Messages:</strong> sent {{ agent.messages_sent }} · received {{ agent.messages_received }}</p>
+          <p><strong>Skills:</strong> {{ agent.skills|join(', ') if agent.skills else '—' }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Agent Interaction Matrix</h2>
+    {% if registry.matrix %}
+      <table>
+        <thead>
+          <tr>
+            <th>Agent</th>
+            {% for agent in registry.matrix_agents %}
+              <th>{{ agent }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in registry.matrix %}
+            <tr>
+              <td>{{ row.agent }}</td>
+              {% for value in row.counts %}
+                <td>{% if value is none %}—{% else %}{{ value }}{% endif %}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No audit log available.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Skill Registry</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Skill</th>
+          <th>Tags</th>
+          <th>LLM Tier</th>
+          <th>Agents</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for skill in registry.skills %}
+          <tr>
+            <td>{{ skill.name }}</td>
+            <td>{{ skill.tags }}</td>
+            <td>{{ skill.llm_tier }}</td>
+            <td>{{ skill.agents }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

@@ -1,0 +1,44 @@
+1. PROGRAM REPORTING
+The contractor shall deliver a weekly operational incident summary and a monthly executive governance report covering service levels, open risks, staffing changes, subcontractor updates, and upcoming milestones.
+
+2. FEDRAMP BOUNDARY
+The contractor must operate the managed platform within a FedRAMP Moderate authorized boundary and maintain a current System Security Plan aligned to NIST SP 800-53 Rev. 5 controls.
+
+3. IDENTITY MANAGEMENT
+The contractor shall enforce multifactor authentication for all privileged users and shall support PIV or CAC authentication for government administrators.
+
+4. AVAILABILITY
+The contractor shall maintain 99.95 percent monthly service availability for the production network management platform.
+
+5. INCIDENT RESPONSE
+The contractor shall acknowledge Severity 1 incidents within 15 minutes and restore service within 4 hours unless a written waiver is approved by the COR.
+
+6. LOG RETENTION
+The contractor must forward security logs to the enterprise SIEM and retain searchable logs for at least 365 calendar days.
+
+7. VULNERABILITY MANAGEMENT
+The contractor shall perform weekly authenticated vulnerability scans and remediate critical findings within 15 calendar days.
+
+8. STAFFING
+The contractor shall provide one onsite program manager and four cleared network engineers dedicated to the task order.
+
+9. TRANSITION
+The contractor shall submit a 30-day transition plan with a cutover rehearsal schedule, rollback steps, and named owners for each transition milestone.
+
+10. CONFIGURATION MANAGEMENT
+The contractor shall update the configuration management database and authoritative asset inventory within 2 business days of any production change.
+
+11. DISASTER RECOVERY
+The contractor shall maintain a tested disaster recovery capability that restores core network management functions within 2 hours and shall conduct one failover exercise each year.
+
+12. TRAINING
+The contractor shall deliver two administrator training workshops and four end-user familiarization sessions during the first 60 days of performance.
+
+13. FAR SAFEGUARDING
+The contractor must comply with FAR 52.204-21 Basic Safeguarding requirements and the commercial terms in FAR 52.212-4.
+
+14. SUBCONTRACTING REPORTS
+The contractor shall provide a monthly subcontracting utilization report identifying small business participation and any variances from plan.
+
+15. SOFTWARE TRANSPARENCY
+The contractor shall provide a software bill of materials for all newly deployed management tools before production release.

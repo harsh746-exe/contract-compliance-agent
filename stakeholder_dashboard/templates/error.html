@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>{{ message | default("Page not found") }}</h2>
+  <div class="cc-actions">
+    <a class="btn-sm btn-outline" href="/">Back to Pipeline</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Launch Compliance Run</h2>
+    <form action="/run-upload" method="post" enctype="multipart/form-data" class="stacked-form" data-loading-copy="Launching compliance run...">
+      <label>
+        Policy / SOW / Requirements Document
+        <input type="file" name="source_document" required />
+      </label>
+      <label>
+        Proposal / Response Document
+        <input type="file" name="response_document" required />
+      </label>
+      <label>
+        Prior Contracts, Amendments, Glossary
+        <input type="file" name="context_documents" multiple />
+      </label>
+      <label>
+        Workflow Type
+        <select name="workflow_type">
+          <option value="compliance_review">Compliance Review</option>
+          <option value="proposal_drafting">Proposal Drafting</option>
+        </select>
+      </label>
+      <label>
+        Run Name (optional)
+        <input type="text" name="run_name" placeholder="Auto-generated if blank" />
+      </label>
+      <button class="btn-sm" type="submit">Launch Compliance Run</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Uploaded Documents</h2>
+    {% if uploaded_documents %}
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Path</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in uploaded_documents %}
+            <tr>
+              <td>{{ doc.name }}</td>
+              <td>{{ doc.type }}</td>
+              <td>{{ doc.size_label }}</td>
+              <td>{{ doc.path }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No uploaded documents available yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

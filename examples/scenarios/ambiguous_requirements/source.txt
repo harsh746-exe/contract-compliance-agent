@@ -1,0 +1,14 @@
+1. SECURITY NOTIFICATION
+The contractor shall provide timely notice of material cybersecurity events when appropriate for the situation.
+
+2. IDENTITY SUPPORT
+The solution must support common federal identity methods where feasible for administrative users.
+
+3. STAFFING LEVELS
+The contractor shall maintain sufficient staffing to avoid undue delays during business-critical incidents.
+
+4. REPORTING CONTENT
+Monthly reports shall include relevant performance indicators acceptable to the COR.
+
+5. ENCRYPTION
+The contractor must use industry-standard encryption or equivalent protections as applicable to the data involved.

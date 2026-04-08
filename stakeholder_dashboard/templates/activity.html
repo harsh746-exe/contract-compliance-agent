@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <h2>Filters</h2>
+    <div class="cc-actions" id="activity-filter-group">
+      <button class="btn-sm btn-outline active" type="button" data-activity-filter="all">All</button>
+      <button class="btn-sm btn-outline" type="button" data-activity-filter="planning">Planning</button>
+      <button class="btn-sm btn-outline" type="button" data-activity-filter="agent">Agent Communication</button>
+      <button class="btn-sm btn-outline" type="button" data-activity-filter="tool">Tool Calls</button>
+      <button class="btn-sm btn-outline" type="button" data-activity-filter="system">System Events</button>
+    </div>
+    <label>
+      Run ID
+      <select id="activity-run-filter">
+        <option value="all">All Runs</option>
+        {% for option in run_options %}
+          <option value="{{ option.scope }}">{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>Unified Timeline</h2>
+    <div class="contract-grid activity-feed" id="activity-feed">
+      {% for item in activity_feed %}
+        <article class="contract-card event-card" data-category="{{ item.category }}" data-run="{{ item.run_scope }}" data-search="{{ item.search_text }}">
+          <div class="event-head">
+            <span>{{ item.timestamp_label }}</span>
+            <span class="badge {% if item.category == 'planning' %}badge-llm{% elif item.category in ['agent', 'tool'] %}badge-compliant{% elif item.category == 'system' %}badge-fallback{% else %}badge-partial{% endif %}">{{ item.category_label }}</span>
+          </div>
+          <h3>{{ item.summary }}</h3>
+          <p class="cc-status">{{ item.source }} → {{ item.target or "—" }}</p>
+          <p>{{ item.details }}</p>
+          <details>
+            <summary>View payload</summary>
+            <pre>{{ item.payload_json }}</pre>
+          </details>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

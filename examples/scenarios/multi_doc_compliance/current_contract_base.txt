@@ -1,0 +1,8 @@
+1. BASE CONTRACT REPORTING
+The current base contract requires monthly service reporting and quarterly governance meetings.
+
+2. BASE SECURITY
+The current base contract requires multifactor authentication for administrators, 180-day log retention, and annual vulnerability scanning.
+
+3. BASE OPERATIONS
+The current base contract requires 99.9 percent availability, Severity 1 acknowledgement within 30 minutes, and restoration within 6 hours.

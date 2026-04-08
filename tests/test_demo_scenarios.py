@@ -106,7 +106,7 @@ def test_resolve_demo_args_applies_scenario_defaults(tmp_path):
 
     resolved = resolve_demo_args(args)
 
-    assert resolved.mode == "agentic"
+    assert resolved.mode == "mcp"
     assert resolved.goal == "compliance_review"
     assert resolved.run_id == "scenario_case"
     assert resolved.policy.endswith("source.txt")

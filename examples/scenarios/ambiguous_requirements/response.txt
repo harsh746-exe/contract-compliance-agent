@@ -1,0 +1,14 @@
+1. SECURITY OPERATIONS
+We generally plan to notify stakeholders quickly about serious cybersecurity issues and to tailor the timing to operational context.
+
+2. ACCESS MODEL
+Our platform supports mainstream identity providers and can usually integrate with government sign-on options after design review.
+
+3. DELIVERY MODEL
+We maintain a flexible staffing pool intended to keep work moving during high-priority events, though final staffing levels will be refined after kickoff.
+
+4. REPORTING APPROACH
+Our monthly updates will include the measures the customer considers most useful for understanding program health.
+
+5. PROTECTION APPROACH
+We apply modern encryption best practices across customer environments based on the technologies and hosting model in use.

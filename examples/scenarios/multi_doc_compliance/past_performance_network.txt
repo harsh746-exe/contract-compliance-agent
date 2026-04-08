@@ -1,0 +1,8 @@
+1. PAST PERFORMANCE SUMMARY
+Northstar IT Services supported a federal network modernization program from 2023 through 2025 and delivered weekly incident reporting, monthly executive governance reviews, and automated CMDB synchronization.
+
+2. SECURITY OUTCOMES
+The team operated a FedRAMP Moderate service boundary, maintained NIST SP 800-53 evidence packages, enforced MFA for privileged users, and retained searchable logs for 400 days.
+
+3. RESILIENCE OUTCOMES
+The program completed two annual failover exercises, restored management services within the 2-hour objective during testing, and closed critical vulnerabilities within 12 days on average.

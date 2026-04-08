@@ -20,7 +20,7 @@ python -m spacy download en_core_web_sm
 
 ```bash
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY for live model-backed runs
+# Edit .env and add your provider key for live model-backed runs
 ```
 
 ## Local Verification
@@ -37,6 +37,20 @@ Optional live smoke test:
 ```bash
 RUN_LIVE_LLM_TESTS=1 pytest -q -m live
 ```
+
+## Dashboard
+
+Run the stakeholder dashboard:
+
+```bash
+./.venv/bin/python -m uvicorn stakeholder_dashboard:app --reload
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+The default screen uses the committed `stakeholder_demo_case` scenario and also supports uploading a source/response pair for ad hoc reviews.
+
+To publish the dashboard for stakeholders, create a Render web service from this repo. The included [render.yaml](/Volumes/HarshT9/Agentic%20AI/Contract%20compliance%20agent/render.yaml) uses the repository [Dockerfile](/Volumes/HarshT9/Agentic%20AI/Contract%20compliance%20agent/Dockerfile); add `DEEPIN_API_KEY` or `DEEPINFRA_API_KEY` in the Render environment settings.
 
 ## Scenario Workflow
 
@@ -170,9 +184,17 @@ If the full pipeline is unavailable, install the pinned dependencies from `requi
 
 ### API Key Issues
 
-Live model-backed runs require:
+Live model-backed runs require either:
 
 ```text
+LLM_PROVIDER=deepinfra
+DEEPINFRA_API_KEY=...
+```
+
+or:
+
+```text
+LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 ```
 

@@ -1,8 +1,9 @@
 """Document parsing utilities for PDF, DOCX, and lightweight text files."""
 
+import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 from dataclasses import dataclass
 
 try:
@@ -16,6 +17,8 @@ try:
     from docx import Document
 except ImportError:
     Document = None
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,14 +67,12 @@ class DocumentParser:
     
     def _parse_pdf(self, file_path: Path, doc_type: str) -> List[DocumentChunk]:
         """Parse PDF file."""
-        chunks = []
-        
         # Try pdfplumber first (better text extraction)
         if pdfplumber:
             try:
                 return self._parse_pdf_pdfplumber(file_path, doc_type)
             except Exception as e:
-                print(f"pdfplumber failed, trying PyPDF2: {e}")
+                logger.warning("pdfplumber failed; falling back to PyPDF2: %s", e)
         
         # Fallback to PyPDF2
         if PyPDF2:

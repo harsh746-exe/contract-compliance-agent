@@ -33,6 +33,10 @@ class ComplianceState(TypedDict):
     persistent_store: PersistentStore
     errors: List[str]
     retry_count: int
+    _policy_path: str
+    _response_path: str
+    _glossary_path: Optional[str]
+    _context_paths: List[str]
 
 
 class ComplianceAgent:

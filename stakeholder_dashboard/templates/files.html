@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% macro render_node(node, root_key) %}
+  {% if node.type == "directory" %}
+    <details class="tree-node" {% if node.relative_path == "" %}open{% endif %}>
+      <summary>{{ node.name }}/</summary>
+      <div class="tree-children">
+        {% for child in node.children %}
+          {{ render_node(child, root_key) }}
+        {% endfor %}
+      </div>
+    </details>
+  {% else %}
+    <div class="tree-file">
+      <button type="button" class="file-link" onclick="previewFile({{ node.preview_path|tojson }})">
+        {{ node.name }} <small>({{ node.size_label }})</small>
+      </button>
+      <div class="cc-actions">
+        <button type="button" class="btn-sm btn-outline" onclick="previewFile({{ node.preview_path|tojson }})">Preview</button>
+        <a class="btn-sm btn-outline" href="{{ node.download_url }}">Download</a>
+        {% if node.can_delete %}
+          <form action="{{ node.delete_url }}" method="post" class="inline-form" data-confirm="Delete this file?">
+            <button type="submit" class="btn-sm btn-outline">Delete</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+  <section class="card">
+    <div class="cc-top">
+      <h2>Bulk Operations</h2>
+      <form action="/files/clear-runs" method="post" data-confirm="Clear all run output directories?" class="inline-form">
+        <button type="submit" class="btn-sm btn-outline">Clear All Runs</button>
+      </form>
+    </div>
+    <h3>Download Run Bundles</h3>
+    <div class="cc-actions">
+      {% for item in workspace_tree.run_downloads %}
+        <a class="btn-sm btn-outline" href="{{ item.download_url }}">Download {{ item.run_id }}</a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="detail-grid">
+    <div class="card files-tree-pane">
+      <h2>Directory Tree</h2>
+      {% for root in workspace_tree.roots %}
+        <div class="tree-root">
+          <h3>{{ root.label }}</h3>
+          {{ render_node(root.tree, root.key) }}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="card files-preview-pane">
+      <div class="cc-top">
+        <h2>Preview</h2>
+        <span id="preview-meta" class="cc-status"></span>
+      </div>
+      <div id="preview-panel" class="preview-panel">
+        <p class="cc-status">Select a file from the tree to preview content.</p>
+      </div>
+    </div>
+  </section>
+{% endblock %}

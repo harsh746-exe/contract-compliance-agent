@@ -1,0 +1,5 @@
+1. PRIOR EXPECTATIONS
+The prior contract referenced prompt incident notification, support for federal identity integration where practical, and monthly reporting tailored to the COR.
+
+2. PRIOR SECURITY
+The prior contract required encryption for sensitive data but allowed equivalent compensating controls when systems could not support the preferred standard.

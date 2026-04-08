@@ -1,0 +1,5 @@
+1. INCUMBENT OPERATING MODEL
+The incumbent contract required monthly reporting, named key personnel, and documented transition controls during service turnover.
+
+2. INCUMBENT TOOLING
+The incumbent used centralized case management, log aggregation, and manual audit evidence collection with documented pain points.

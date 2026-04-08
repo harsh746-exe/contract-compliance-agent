@@ -35,14 +35,16 @@ def load_scenario(scenario_dir: Path | str) -> DemoScenario:
     """Load and validate a scenario manifest plus its referenced files."""
     scenario_path = Path(scenario_dir)
     manifest_path = scenario_path / "scenario.json"
+    if not manifest_path.exists():
+        manifest_path = scenario_path / "manifest.json"
 
     if not manifest_path.exists():
-        raise FileNotFoundError(f"Scenario manifest not found: {manifest_path}")
+        raise FileNotFoundError(f"Scenario manifest not found: {scenario_path / 'scenario.json'}")
 
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     scenario = DemoScenario.model_validate(payload)
 
-    if scenario.mode not in {"linear", "agentic"}:
+    if scenario.mode not in {"linear", "agentic", "mcp", "compliance_review"}:
         raise ValueError(f"Unsupported scenario mode: {scenario.mode}")
     if not scenario.documents:
         raise ValueError("Scenario must define at least one document.")
@@ -125,6 +127,12 @@ def materialize_agentic_artifacts(artifacts: Dict[str, str], output_dir: Path) -
 
 def find_results_json(output_dir: Path, run_id: str) -> Path:
     """Locate the results JSON for evaluation within a scenario output directory."""
+    # MCP runs emit a stable compliance_results.json artifact.
+    # Prefer it over legacy/stale run_id-specific results files.
+    mcp_results = output_dir / "compliance_results.json"
+    if mcp_results.exists():
+        return mcp_results
+
     exact = output_dir / f"{run_id}_results.json"
     if exact.exists():
         return exact

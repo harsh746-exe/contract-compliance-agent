@@ -1,0 +1,54 @@
+Apex Meridian Technologies, LLC
+Managed IT Operations and Service Desk Support Proposal
+Submitted to: North Valley Enterprise Operations Office
+Date: January 2026
+
+1. Executive Overview
+Apex Meridian Technologies (AMT) appreciates the opportunity to provide enterprise IT managed services for North Valley's mission support environment. AMT is a mid-sized federal IT integrator founded in 2013 with 420 full-time personnel, including 168 operations engineers, 52 cybersecurity specialists, and an established Program Management Office supporting civilian and defense customers. We currently operate two 24x7 service desks and three Security Operations Centers across U.S. delivery facilities.
+
+Our proposed approach emphasizes measurable service outcomes, operational transparency, and disciplined control of service risk. The delivery model uses an ITIL-aligned command structure, integrated monitoring, and an escalation framework jointly managed by AMT and government leads. We have structured this proposal to address the service-level, security, staffing, reporting, and transition objectives in the SOW while preserving flexibility for agency mission tempo.
+
+2. Service Delivery Approach
+AMT will staff a dedicated service desk pod and infrastructure operations cell with clear functional ownership for incident response, request fulfillment, endpoint operations, and platform support. The service desk platform will ingest events from infrastructure monitoring, endpoint telemetry, and customer tickets into one queue with severity-based assignment rules.
+
+For incident response timelines, AMT commits to initial response and triage within 15 minutes for Priority 1 incidents, within 1 hour for Priority 2 incidents, and within 4 hours for Priority 3 incidents. Escalation workflows will automatically route unresolved incidents to on-call engineering and service leadership after policy-based thresholds.
+
+To sustain availability objectives, AMT commits to 99.95% monthly uptime for all in-scope production systems, with planned maintenance windows coordinated in advance and documented through the change approval calendar. Platform reliability engineering practices include proactive alerting, runbook automation, and weekly reliability reviews with the government technical team.
+
+3. Security and Compliance Posture
+AMT maintains a current FedRAMP Moderate authorization for its managed service environment and a current SOC 2 Type II report covering security, availability, and confidentiality controls. Attestation documents can be provided at contract kickoff and refreshed per annual cycle.
+
+Data protection controls are implemented by policy and tooling across all managed components. Customer and operational data are encrypted at rest and protected during transmission across service interfaces. Access is role-based and logged, with privileged access reviewed by the security team and program leadership.
+
+AMT maintains a documented incident response plan with defined severity criteria, containment workflows, and communication responsibilities. For critical incidents, AMT will notify the COR within 30 minutes of confirmed detection and continue status updates at agreed intervals until closure.
+
+4. Staffing and Personnel Management
+AMT will assign a Program Manager, Technical Lead, Service Delivery Manager, and dedicated engineering team to this effort. Personnel onboarding, account provisioning, and role-based training are coordinated through our Program Management Office with quality checkpoints before independent production access.
+
+Our staffing baseline includes engineers with foundational cybersecurity and infrastructure certifications, including CompTIA Security+ for most technical operations staff and equivalent credentials for specialized positions. The proposed Technical Lead currently holds CISM and Azure Architect Expert credentials, and AMT can provide additional certification records as part of transition planning.
+
+All personnel assigned at start and through steady-state operations will hold active Public Trust clearance or higher before work assignment. AMT tracks clearance status in a controlled workforce system and verifies eligibility during staffing actions and personnel substitutions.
+
+The Program Manager and Technical Lead are treated as key personnel in our delivery governance process. AMT will provide no less than 30 days advance written notice for any proposed key personnel replacement and will coordinate transition sequencing with government representatives before role turnover.
+
+5. Reporting, Governance, and Transparency
+AMT will submit a monthly performance report within 5 business days after month-end. The report package includes SLA attainment by priority and service tower, incident trends with root-cause themes, backlog movement, aging analysis, and capacity trend indicators for the next operating period.
+
+Governance includes weekly operational sync meetings, biweekly risk and issue reviews, and monthly service review briefings. Each governance artifact is retained in the program repository with action tracking and ownership assignments.
+
+6. Transition and Knowledge Transfer
+AMT proposes a structured transition-in period spanning 60 days, beginning at task order award. The transition includes discovery workshops, documentation review, knowledge transfer sessions with incumbent staff, and early-life support during service desk cutover.
+
+Knowledge transfer artifacts will include system ownership maps, operational runbooks, known-error logs, and escalation matrices. AMT will phase onboarding by service tower to reduce operational disruption and establish service continuity controls before full steady-state assumption.
+
+7. Patch, Configuration, and Asset Controls
+AMT will operate a patch governance workflow with threat-informed prioritization, weekly review cycles, and emergency change controls for high-risk vulnerabilities. Critical security patches will be deployed within 72 hours of release, subject to documented exception handling for vendor defects or mission constraints.
+
+All patch bundles will be validated in a staging environment prior to production deployment. Validation evidence will be retained in the change record and linked to release approvals for audit support.
+
+AMT maintains a centralized configuration and asset register that tracks infrastructure components, software versions, ownership, and lifecycle status. Inventory quality will be validated through recurring reconciliations and control reviews aligned to program governance.
+
+8. Corporate Differentiators and Conclusion
+AMT combines operational scale, security-first execution, and mature service management practices. Our proposed team brings direct experience supporting multi-region environments with strict uptime and response requirements. We are prepared to stand up operations rapidly, maintain transparent delivery governance, and partner with the government team to sustain mission performance.
+
+We appreciate your consideration and welcome the opportunity to discuss this proposal in oral presentations and clarifications.

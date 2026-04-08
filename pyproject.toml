@@ -11,6 +11,7 @@ requires-python = ">=3.9"
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 markers = [
   "live: optional live LLM smoke tests that require external credentials",
 ]

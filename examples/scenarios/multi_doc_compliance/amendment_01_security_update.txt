@@ -1,0 +1,5 @@
+1. SECURITY AMENDMENT
+Amendment 01 updates the task order to require FedRAMP Moderate hosting, NIST SP 800-53 Rev. 5 alignment, PIV or CAC support for administrators, 365-day searchable log retention, and weekly authenticated vulnerability scanning.
+
+2. SUPPLY CHAIN AMENDMENT
+Amendment 01 also requires a software bill of materials for all newly deployed management tools before production release.

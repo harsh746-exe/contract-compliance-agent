@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title }}</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script defer src="/static/app.js?v=20260408b"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <nav class="sidebar">
+        <div class="sidebar-header">
+          <h2>Compliance Agent</h2>
+          <small>Document Operations Workspace</small>
+        </div>
+        <ul class="nav-links">
+          <li>
+            <a href="/" class="{% if active_page == 'overview' %}active{% endif %}">
+              <span class="nav-icon">📊</span> Pipeline
+            </a>
+          </li>
+          <li>
+            <a href="/compliance-runs" class="{% if active_page == 'runs' %}active{% endif %}">
+              <span class="nav-icon">🔍</span> Agent Runs
+            </a>
+          </li>
+          <li>
+            <a href="/documents" class="{% if active_page == 'documents' %}active{% endif %}">
+              <span class="nav-icon">📄</span> Documents
+            </a>
+          </li>
+          <li>
+            <a href="/files" class="{% if active_page == 'files' %}active{% endif %}">
+              <span class="nav-icon">📁</span> Files
+            </a>
+          </li>
+          <li>
+            <a href="/activity" class="{% if active_page == 'activity' %}active{% endif %}">
+              <span class="nav-icon">📋</span> Activity
+            </a>
+          </li>
+          <li>
+            <a href="/agents" class="{% if active_page == 'agents' %}active{% endif %}">
+              <span class="nav-icon">🤖</span> Agents
+            </a>
+          </li>
+        </ul>
+        <div class="sidebar-footer">
+          <a href="/run-upload" class="btn-new-run">+ New Compliance Run</a>
+        </div>
+      </nav>
+
+      <main class="main-content">
+        <div class="system-banner">
+          <strong>Virtual Document Operations Workspace</strong> — AI agent team for IT services contract compliance review, gap analysis, and proposal drafting
+        </div>
+        {% if show_page_header != False %}
+          <header class="page-header">
+            <h1>{{ hero_title }}</h1>
+            <p>{{ hero_subtitle }}</p>
+          </header>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+    <div class="loading-overlay" id="loading-overlay" hidden>
+      <div class="loading-content">
+        <span class="spinner"></span>
+        <p id="loading-copy">Launching run...</p>
+      </div>
+    </div>
+  </body>
+</html>

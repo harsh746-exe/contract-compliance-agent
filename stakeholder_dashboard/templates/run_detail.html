@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="cc-top">
+      <h2>Run Metadata</h2>
+      <div class="cc-actions">
+        <a class="btn-sm btn-outline" href="/runs/{{ run.scope }}/live">▶ Replay</a>
+        <a class="btn-sm btn-outline" href="/runs/{{ run.scope }}/workflow">View Workflow</a>
+      </div>
+    </div>
+    <div class="pipeline-bar">
+      <div class="pipeline-stat"><span class="stat-number">{{ run.run_id }}</span><span class="stat-label">Run ID</span></div>
+      <div class="pipeline-stat"><span class="stat-number">{{ run.created_label }}</span><span class="stat-label">Timestamp</span></div>
+      <div class="pipeline-stat"><span class="stat-number">{{ run.meta.workflow or "compliance_review" }}</span><span class="stat-label">Workflow Type</span></div>
+      <div class="pipeline-stat"><span class="stat-number">{{ run.planner_mode }}</span><span class="stat-label">Planner Mode</span></div>
+      <div class="pipeline-stat"><span class="stat-number">{{ run.summary_cards.total_requirements }}</span><span class="stat-label">Requirements</span></div>
+      <div class="pipeline-stat"><span class="stat-number">{{ run.decisions_count }}</span><span class="stat-label">Decisions</span></div>
+    </div>
+    <h3>Documents</h3>
+    <ul>
+      {% for doc in run.meta.documents %}
+        <li>{{ doc.label or doc.role }}: {{ doc.path }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="card">
+    <div class="cc-top">
+      <h2>Compliance Results</h2>
+    </div>
+
+    <form action="/runs/{{ run.scope }}/flag-review" method="post">
+      <table>
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Req ID</th>
+            <th>Requirement Text</th>
+            <th>Label</th>
+            <th>Confidence</th>
+            <th>Evidence Count</th>
+            <th>Execution Mode</th>
+            <th>Review Required</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for decision in run.requirements %}
+            <tr class="decision-row label-{{ decision.label|replace('_', '-') }}" data-target="detail-{{ decision.detail_dom_id }}">
+              <td>
+                <input type="checkbox" name="requirement_ids" value="{{ decision.requirement_id }}" onclick="event.stopPropagation()" />
+              </td>
+              <td>{{ decision.requirement_id }}</td>
+              <td class="req-text">{{ decision.requirement_text[:80] }}{% if decision.requirement_text|length > 80 %}...{% endif %}</td>
+              <td>
+                {% if decision.label == "compliant" %}<span class="badge badge-compliant">✅ Compliant</span>{% endif %}
+                {% if decision.label == "partial" %}<span class="badge badge-partial">⚠️ Partial</span>{% endif %}
+                {% if decision.label == "not_compliant" %}<span class="badge badge-not-compliant">❌ Not Compliant</span>{% endif %}
+                {% if decision.label == "not_addressed" %}<span class="badge badge-not-addressed">❓ Not Addressed</span>{% endif %}
+              </td>
+              <td>{{ "%.2f" | format(decision.confidence or 0) }}</td>
+              <td>{{ decision.evidence_chunks | length }}</td>
+              <td>
+                {% if (decision.execution_mode or '')|lower == 'llm' %}
+                  <span class="badge badge-llm">LLM</span>
+                {% else %}
+                  <span class="badge badge-fallback">{{ decision.execution_mode or 'fallback' }}</span>
+                {% endif %}
+              </td>
+              <td>{% if decision.review_required or decision.is_review_queue %}Yes{% else %}No{% endif %}</td>
+            </tr>
+            <tr class="detail-row" id="detail-{{ decision.detail_dom_id }}" hidden>
+              <td colspan="8">
+                <div class="detail-content">
+                  <div class="detail-section">
+                    <h4>Requirement</h4>
+                    <p>{{ decision.requirement_text }}</p>
+                  </div>
+                  <div class="detail-section">
+                    <h4>Assessment</h4>
+                    <p>{{ decision.explanation }}</p>
+                  </div>
+                  {% if decision.evidence_chunks %}
+                    <div class="detail-section">
+                      <h4>Evidence ({{ decision.evidence_chunks | length }} chunks)</h4>
+                      {% for chunk in decision.evidence_chunks %}
+                        <div class="evidence-chunk">
+                          <div class="chunk-source">{{ chunk.source_citation or chunk.evidence_citation or 'Unknown source' }}</div>
+                          <div class="chunk-text">{{ chunk.evidence_text[:300] }}{% if chunk.evidence_text|length > 300 %}...{% endif %}</div>
+                          <div class="chunk-score">Retrieval score: {{ "%.3f" | format(chunk.retrieval_score or 0) }}</div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  {% if decision.suggested_edits %}
+                    <div class="detail-section">
+                      <h4>Suggested Edits</h4>
+                      <ul>
+                        {% for edit in decision.suggested_edits %}
+                          <li>{{ edit }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+                  <div class="detail-section">
+                    <h4>Citation Validation</h4>
+                    <p>
+                      Coverage: {{ "%.0f" | format((decision.citation_coverage or 0) * 100) }}% |
+                      Status: {{ decision.citation_validation_status or 'unknown' }} |
+                      Penalty: {{ decision.citation_penalty or 0 }}
+                    </p>
+                    {% if decision.invalid_citation_ids %}
+                      <p>Invalid citations: {{ decision.invalid_citation_ids | join(', ') }}</p>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="cc-actions">
+        <button type="submit" class="btn-sm">Flag Selected for Review</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Planning Trace Timeline</h2>
+    <div class="timeline">
+      {% for step in run.planning_trace %}
+        <div class="timeline-step timeline-{{ step.tone }}">
+          <h3>Step {{ step.step }} - {{ step.step_label }} <span class="badge badge-llm">{{ step.planner_mode|upper }}</span></h3>
+          <p>{{ step.reasoning }}</p>
+          {% if step.confidence_after and step.confidence_after.min is not none %}
+            <p>
+              Confidence: {{ "%.2f"|format(step.confidence_after.min) }} - {{ "%.2f"|format(step.confidence_after.max) }} (mean {{ "%.2f"|format(step.confidence_after.mean) }})
+            </p>
+          {% endif %}
+          {% if step.target_requirements %}
+            <p>Targeted: {{ step.target_requirements|join(', ') }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if run.evaluation %}
+    <section class="card">
+      <h2>Evaluation Metrics</h2>
+      <div class="pipeline-bar">
+        <div class="pipeline-stat"><span class="stat-number">{% if run.evaluation.accuracy is not none %}{{ "%.3f"|format(run.evaluation.accuracy) }}{% else %}n/a{% endif %}</span><span class="stat-label">Accuracy</span></div>
+        <div class="pipeline-stat"><span class="stat-number">{% if run.evaluation.cohen_kappa is not none %}{{ "%.3f"|format(run.evaluation.cohen_kappa) }}{% else %}n/a{% endif %}</span><span class="stat-label">Kappa</span></div>
+        <div class="pipeline-stat"><span class="stat-number">{% if run.evaluation.calibration and run.evaluation.calibration.expected_calibration_error is not none %}{{ "%.3f"|format(run.evaluation.calibration.expected_calibration_error) }}{% else %}n/a{% endif %}</span><span class="stat-label">ECE</span></div>
+      </div>
+
+      {% if run.evaluation.per_label_metrics %}
+        <h3>Per-label precision/recall/F1</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Precision</th>
+              <th>Recall</th>
+              <th>F1</th>
+              <th>Support</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, metrics in run.evaluation.per_label_metrics.items() %}
+              <tr>
+                <td>{{ label }}</td>
+                <td>{{ "%.3f"|format(metrics.precision) }}</td>
+                <td>{{ "%.3f"|format(metrics.recall) }}</td>
+                <td>{{ "%.3f"|format(metrics.f1) }}</td>
+                <td>{{ metrics.support }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      {% if confusion.labels %}
+        <h3>Confusion Matrix</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Actual \\ Pred</th>
+              {% for label in confusion.labels %}
+                <th>{{ label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in confusion.rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                {% for value in row.cells %}
+                  <td>{{ value }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>Artifacts</h2>
+    {% for group in run.artifact_groups.groups %}
+      <details class="artifact-group" {% if loop.first %}open{% endif %}>
+        <summary>{{ group.label }} ({{ group.files|length }})</summary>
+        <div class="artifact-list">
+          {% for artifact in group.files %}
+            <details class="artifact-item">
+              <summary>{{ artifact.label }}</summary>
+      <div class="cc-actions">
+        <a class="btn-sm btn-outline" href="/downloads/{{ run.scope }}/{{ artifact.name }}">Download</a>
+      </div>
+              {% if artifact.preview %}
+                <pre>{{ artifact.preview }}</pre>
+              {% else %}
+                <p>Preview unavailable for this file type.</p>
+              {% endif %}
+            </details>
+          {% endfor %}
+        </div>
+      </details>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Stakeholder Actions</h2>
+    <div class="cc-actions">
+      {% if report_download_url %}
+        <a class="btn-sm btn-outline" href="{{ report_download_url }}">Download Full Report</a>
+      {% else %}
+        <span class="cc-status">Full report unavailable</span>
+      {% endif %}
+      {% if matrix_download_url %}
+        <a class="btn-sm btn-outline" href="{{ matrix_download_url }}">Download Compliance Matrix</a>
+      {% else %}
+        <span class="cc-status">Compliance matrix unavailable</span>
+      {% endif %}
+      <a class="btn-sm btn-outline" href="{{ download_all_url }}">Download All Artifacts</a>
+    </div>
+
+    <h3>Add Note</h3>
+    <form action="/runs/{{ run.scope }}/notes" method="post" class="stacked-form">
+      <label>
+        Stakeholder note
+        <textarea name="note" rows="3" placeholder="Add context, concerns, or follow-up actions."></textarea>
+      </label>
+      <button type="submit" class="btn-sm">Save Note</button>
+    </form>
+
+    {% if stakeholder_notes %}
+      <h3>Recent Notes</h3>
+      <ul>
+        {% for item in stakeholder_notes|reverse %}
+          <li><strong>{{ item.timestamp }}</strong> — {{ item.note }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if review_flags %}
+      <h3>Review Flags</h3>
+      <ul>
+        {% for flag in review_flags|reverse %}
+          <li><strong>{{ flag.timestamp }}</strong> — {{ flag.requirement_ids | join(', ') }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+{% endblock %}

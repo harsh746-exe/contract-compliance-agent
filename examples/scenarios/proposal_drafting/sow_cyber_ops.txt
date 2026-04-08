@@ -1,0 +1,17 @@
+1. EXECUTIVE APPROACH
+The contractor shall provide an executive summary that explains how the proposed cyber operations model reduces incident response time and improves audit readiness.
+
+2. TRANSITION PLAN
+The contractor shall provide a 45-day transition plan with staffing, knowledge transfer activities, risk controls, and measurable entry and exit criteria.
+
+3. STAFFING MATRIX
+The contractor shall identify a program manager, a security operations lead, a threat hunting lead, and a quality manager in the proposal response.
+
+4. REPORTING
+The contractor shall provide a monthly cyber operations report covering incidents, vulnerabilities, threat hunting outcomes, and remediation status.
+
+5. AUTOMATION
+The contractor shall describe the automation used for log aggregation, case management, and evidence collection for audits.
+
+6. PAST PERFORMANCE
+The contractor shall cite at least two prior efforts that demonstrate experience with federal SOC modernization or continuous monitoring programs.
