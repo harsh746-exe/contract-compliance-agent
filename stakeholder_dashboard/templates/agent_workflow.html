@@ -1,24 +1,37 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <div class="cc-top">
-      <h2>{{ run.title }} Workflow</h2>
-      <a class="btn-sm btn-outline" href="/runs/{{ run.scope }}">Back to Run</a>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Workflow stats</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Agents</dt><dd>{{ workflow_data.stats.agent_count }}</dd></div>
+      <div><dt>Messages</dt><dd>{{ workflow_data.stats.total_messages }}</dd></div>
+      <div><dt>Skills</dt><dd>{{ workflow_data.stats.skill_count }}</dd></div>
+      <div><dt>Phases</dt><dd>{{ workflow_data.stats.phase_count }}</dd></div>
+    </dl>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/runs/{{ run.scope }}">Back to run</a>
     </div>
-    <div class="pipeline-bar">
-      <div class="pipeline-stat"><span class="stat-number">{{ workflow_data.stats.agent_count }}</span><span class="stat-label">Agents</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ workflow_data.stats.total_messages }}</span><span class="stat-label">Messages</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ workflow_data.stats.skill_count }}</span><span class="stat-label">Skills</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ workflow_data.stats.phase_count }}</span><span class="stat-label">Phases</span></div>
-    </div>
-  </section>
+  </div>
+{% endblock %}
 
-  <section class="card">
-    <h2>Agent Message Flow</h2>
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>{{ run.title }} workflow</h2>
+      <span class="section-badge">Agentic trace</span>
+    </div>
+    <p class="section-copy">Agent communication and tool invocation flow for this run.</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Agent message flow</h2>
+      <span class="section-badge">Graph</span>
+    </div>
     <div id="workflow-swim-lanes" class="workflow-canvas"></div>
     <div id="message-detail" class="message-detail" hidden></div>
-  </section>
+  </div>
 
   <script>
     window.__workflowData = {{ workflow_data_json | safe }};

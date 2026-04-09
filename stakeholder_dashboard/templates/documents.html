@@ -1,122 +1,118 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <h2>Upload Documents</h2>
-    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="upload-drop-zone" data-loading-copy="Uploading documents...">
-      <p>Drag and drop files here, or choose files to upload into <code>data/uploads/</code>.</p>
-      <input type="file" name="files" multiple required />
-      <button class="btn-sm" type="submit">Upload Files</button>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <div class="section-heading">
+      <h2>Upload documents</h2>
+      <span class="section-badge">Files</span>
+    </div>
+    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="stacked-form upload-drop-zone" data-loading-copy="Uploading documents...">
+      <label>
+        <span>Select files</span>
+        <input type="file" name="files" multiple required />
+      </label>
+      <button class="primary-action" type="submit">Upload files</button>
     </form>
-  </section>
+    <p class="section-copy" style="margin-top: 10px;">Files are stored under <code>data/uploads/</code>.</p>
+  </div>
+{% endblock %}
 
-  <section class="card">
-    <h2>Scenario Documents</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Document</th>
-          <th>Scenario</th>
-          <th>Role</th>
-          <th>Type</th>
-          <th>Size</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for doc in inventory.scenario_documents %}
-          <tr class="toggle-row" data-target="doc-{{ loop.index }}">
-            <td>{{ doc.name }}</td>
-            <td>{{ doc.scenario }}</td>
-            <td>{{ doc.role_label }}</td>
-            <td>{{ doc.type }}</td>
-            <td>{{ doc.size_label }}</td>
-          </tr>
-          <tr id="doc-{{ loop.index }}" class="detail-row" hidden>
-            <td colspan="5">
-              <div class="detail-block">
-                <p><strong>Path:</strong> {{ doc.path }}</p>
-                <p><strong>Preview:</strong></p>
-                <pre>{{ doc.preview[:2000] }}</pre>
-                {% if doc.preview|length > 2000 %}
-                  <details>
-                    <summary>Show more</summary>
-                    <pre>{{ doc.preview[2000:] }}</pre>
-                  </details>
-                {% endif %}
-                <p><strong>Runs using this document:</strong></p>
-                {% if doc.usage %}
-                  <ul>
-                    {% for use in doc.usage %}
-                      <li>
-                        <a href="/runs/{{ use.scope }}">{{ use.run_id }}</a> · {{ use.role_label }}
-                        {% if use.requirements_extracted %} · {{ use.requirements_extracted }} requirements extracted{% endif %}
-                      </li>
-                    {% endfor %}
-                  </ul>
-                {% else %}
-                  <p>Not used in any completed run yet.</p>
-                {% endif %}
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Scenario documents</h2>
+      <span class="section-badge">{{ inventory.scenario_documents | length }}</span>
+    </div>
+    <div class="requirements-list">
+      {% for doc in inventory.scenario_documents %}
+        <details class="document-card">
+          <summary class="document-summary">
+            <div>
+              <h3>{{ doc.name }}</h3>
+              <p class="analysis-copy">{{ doc.scenario }}</p>
+            </div>
+            <div class="document-meta-pills">
+              <span>{{ doc.role_label }}</span>
+              <span>{{ doc.type }}</span>
+              <span>{{ doc.size_label }}</span>
+            </div>
+          </summary>
+          <div class="document-body">
+            <p class="path-label">{{ doc.path }}</p>
+            <pre>{{ doc.preview[:2000] }}</pre>
+            {% if doc.preview|length > 2000 %}
+              <details style="margin-top: 10px;">
+                <summary class="text-link">Show more</summary>
+                <pre style="margin-top: 8px;">{{ doc.preview[2000:] }}</pre>
+              </details>
+            {% endif %}
+            <p class="section-copy" style="margin-top: 12px;">Runs using this document:</p>
+            {% if doc.usage %}
+              <div class="run-list" style="margin-top: 6px;">
+                {% for use in doc.usage %}
+                  <a class="run-link" href="/runs/{{ use.scope }}">
+                    <strong>{{ use.run_id }}</strong>
+                    <small>{{ use.role_label }}{% if use.requirements_extracted %} · {{ use.requirements_extracted }} requirements extracted{% endif %}</small>
+                  </a>
+                {% endfor %}
               </div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
+            {% else %}
+              <p class="empty-copy">Not used in any completed run yet.</p>
+            {% endif %}
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
 
-  <section class="card">
-    <h2>Uploaded Documents</h2>
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Uploaded documents</h2>
+      <span class="section-badge">{{ inventory.uploaded_documents | length }}</span>
+    </div>
     {% if inventory.uploaded_documents %}
-      <table>
-        <thead>
-          <tr>
-            <th>Document</th>
-            <th>Scenario</th>
-            <th>Role</th>
-            <th>Type</th>
-            <th>Size</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for doc in inventory.uploaded_documents %}
-            <tr class="toggle-row" data-target="upload-doc-{{ loop.index }}">
-              <td>{{ doc.name }}</td>
-              <td>{{ doc.scenario }}</td>
-              <td>{{ doc.role_label }}</td>
-              <td>{{ doc.type }}</td>
-              <td>{{ doc.size_label }}</td>
-            </tr>
-            <tr id="upload-doc-{{ loop.index }}" class="detail-row" hidden>
-              <td colspan="5">
-                <div class="detail-block">
-                  <p><strong>Path:</strong> {{ doc.path }}</p>
-                  <pre>{{ doc.preview[:2000] }}</pre>
-                  {% if doc.preview|length > 2000 %}
-                    <details>
-                      <summary>Show more</summary>
-                      <pre>{{ doc.preview[2000:] }}</pre>
-                    </details>
-                  {% endif %}
-                  <p><strong>Runs using this document:</strong></p>
-                  {% if doc.usage %}
-                    <ul>
-                      {% for use in doc.usage %}
-                        <li>
-                          <a href="/runs/{{ use.scope }}">{{ use.run_id }}</a> · {{ use.role_label }}
-                        </li>
-                      {% endfor %}
-                    </ul>
-                  {% else %}
-                    <p>Not used in any completed run yet.</p>
-                  {% endif %}
+      <div class="requirements-list">
+        {% for doc in inventory.uploaded_documents %}
+          <details class="document-card">
+            <summary class="document-summary">
+              <div>
+                <h3>{{ doc.name }}</h3>
+                <p class="analysis-copy">{{ doc.scenario }}</p>
+              </div>
+              <div class="document-meta-pills">
+                <span>{{ doc.role_label }}</span>
+                <span>{{ doc.type }}</span>
+                <span>{{ doc.size_label }}</span>
+              </div>
+            </summary>
+            <div class="document-body">
+              <p class="path-label">{{ doc.path }}</p>
+              <pre>{{ doc.preview[:2000] }}</pre>
+              {% if doc.preview|length > 2000 %}
+                <details style="margin-top: 10px;">
+                  <summary class="text-link">Show more</summary>
+                  <pre style="margin-top: 8px;">{{ doc.preview[2000:] }}</pre>
+                </details>
+              {% endif %}
+              <p class="section-copy" style="margin-top: 12px;">Runs using this document:</p>
+              {% if doc.usage %}
+                <div class="run-list" style="margin-top: 6px;">
+                  {% for use in doc.usage %}
+                    <a class="run-link" href="/runs/{{ use.scope }}">
+                      <strong>{{ use.run_id }}</strong>
+                      <small>{{ use.role_label }}</small>
+                    </a>
+                  {% endfor %}
                 </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              {% else %}
+                <p class="empty-copy">Not used in any completed run yet.</p>
+              {% endif %}
+            </div>
+          </details>
+        {% endfor %}
+      </div>
     {% else %}
-      <p>No uploaded documents yet.</p>
+      <p class="empty-copy">No uploaded documents yet.</p>
     {% endif %}
-  </section>
+  </div>
 {% endblock %}

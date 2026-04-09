@@ -1,24 +1,39 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <div class="cc-top">
-      <h2>{{ workspace_file.name }}</h2>
-      <div class="cc-actions">
-        <a class="btn-sm btn-outline" href="/files">Back</a>
-        <a class="btn-sm btn-outline" href="{{ workspace_file.download_url }}">Download</a>
-        {% if workspace_file.can_delete %}
-          <form action="{{ workspace_file.delete_url }}" method="post" data-confirm="Delete this file?" class="inline-form">
-            <button class="btn-sm btn-outline" type="submit">Delete</button>
-          </form>
-        {% endif %}
-      </div>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Workspace file</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Name</dt><dd>{{ workspace_file.name }}</dd></div>
+      <div><dt>Path</dt><dd>{{ workspace_file.relative_path }}</dd></div>
+      <div><dt>Type</dt><dd>{{ preview.kind | upper }}</dd></div>
+    </dl>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/files">Back to files</a>
+      <a class="inline-action secondary-link" href="{{ workspace_file.download_url }}">Download</a>
+      {% if workspace_file.can_delete %}
+        <form action="{{ workspace_file.delete_url }}" method="post" data-confirm="Delete this file?">
+          <button class="secondary-action" type="submit">Delete</button>
+        </form>
+      {% endif %}
     </div>
-    <p>{{ workspace_file.relative_path }}</p>
-  </section>
+  </div>
+{% endblock %}
 
-  <section class="card">
-    <h2>Preview</h2>
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>{{ workspace_file.name }}</h2>
+      <span class="section-badge">{{ preview.kind | upper }}</span>
+    </div>
+    <p class="section-copy">{{ workspace_file.relative_path }}</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Preview</h2>
+      <span class="section-badge">Content</span>
+    </div>
     {% if preview.kind == "csv" %}
       <table>
         <thead>
@@ -41,5 +56,5 @@
     {% else %}
       <pre>{{ preview.text }}</pre>
     {% endif %}
-  </section>
+  </div>
 {% endblock %}

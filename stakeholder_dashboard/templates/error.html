@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h2>{{ message | default("Page not found") }}</h2>
-  <div class="cc-actions">
-    <a class="btn-sm btn-outline" href="/">Back to Pipeline</a>
+  <div class="panel">
+    <div class="section-heading">
+      <h2>{{ message | default("Page not found") }}</h2>
+      <span class="section-badge">Error</span>
+    </div>
+    <p class="section-copy">The requested page could not be loaded.</p>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/">Back to pipeline</a>
+    </div>
   </div>
-</section>
 {% endblock %}

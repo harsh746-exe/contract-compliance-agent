@@ -2380,6 +2380,44 @@ def _resolve_workspace_path(root_key: str, relative_path: str) -> Path:
     return target
 
 
+def build_file_tree(root_dirs: list[str]) -> list[dict]:
+    """Build nested file tree structure for the template."""
+
+    def scan_dir(path: Path) -> dict:
+        node = {
+            "name": path.name,
+            "path": str(path),
+            "is_dir": path.is_dir(),
+            "children": [],
+            "size": None,
+        }
+        if path.is_dir():
+            try:
+                children = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name))
+            except PermissionError:
+                children = []
+            for child in children:
+                if child.name.startswith(".") or child.name == "__pycache__":
+                    continue
+                node["children"].append(scan_dir(child))
+        else:
+            size = path.stat().st_size
+            if size < 1024:
+                node["size"] = f"{size} B"
+            elif size < 1024 * 1024:
+                node["size"] = f"{size // 1024} KB"
+            else:
+                node["size"] = f"{size // (1024 * 1024)} MB"
+        return node
+
+    trees: list[dict] = []
+    for root in root_dirs:
+        p = Path(root)
+        if p.exists():
+            trees.append(scan_dir(p))
+    return trees
+
+
 def _build_tree_nodes(root_key: str, base_path: Path, path: Path, depth: int = 0) -> Dict[str, Any]:
     if path.is_file():
         rel = path.resolve().relative_to(base_path.resolve()).as_posix()
@@ -2755,8 +2793,8 @@ def dashboard_home(request: Request) -> HTMLResponse:
     context = _base_context(
         request,
         page_title="Contract Operations Dashboard",
-        hero_title="Pipeline",
-        hero_subtitle="Government IT contract pipeline and agent execution status.",
+        hero_title="Contract operations",
+        hero_subtitle="AI-powered document operations for IT services contracting.",
         active_nav="overview",
     )
 
@@ -2769,7 +2807,6 @@ def dashboard_home(request: Request) -> HTMLResponse:
             "contracts": contracts,
             "pipeline": pipeline,
             "stages": STAGES,
-            "show_page_header": False,
         }
     )
     return templates.TemplateResponse("index.html", context)
@@ -2826,7 +2863,9 @@ def files_page(request: Request) -> HTMLResponse:
         hero_subtitle="Browse the workspace directory tree, preview artifacts, download files, and clean up run outputs.",
         active_nav="files",
     )
-    context["workspace_tree"] = _workspace_tree()
+    workspace_tree = _workspace_tree()
+    context["run_downloads"] = workspace_tree["run_downloads"]
+    context["file_trees"] = build_file_tree(["output", "data", "examples/scenarios"])
     return templates.TemplateResponse("files.html", context)
 
 

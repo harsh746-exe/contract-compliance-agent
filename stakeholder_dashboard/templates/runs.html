@@ -1,48 +1,49 @@
 {% extends "base.html" %}
 
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Run inventory</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Total runs</dt><dd>{{ run_rows | length }}</dd></div>
+      <div><dt>With accuracy</dt><dd>{{ run_rows | selectattr('accuracy', 'ne', none) | list | length }}</dd></div>
+      <div><dt>LLM planned</dt><dd>{{ run_rows | selectattr('planner_mode', 'equalto', 'llm') | list | length }}</dd></div>
+    </dl>
+  </div>
+{% endblock %}
+
 {% block content %}
-  <section class="card">
-    <h2>Completed Runs</h2>
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Completed runs</h2>
+      <span class="section-badge">{{ run_rows | length }}</span>
+    </div>
+
     {% if run_rows %}
-      <table>
-        <thead>
-          <tr>
-            <th>Run ID</th>
-            <th>Type</th>
-            <th>Requirements</th>
-            <th>Decisions</th>
-            <th>Accuracy</th>
-            <th>Steps</th>
-            <th>Planner</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for run in run_rows %}
-            <tr>
-              <td>{{ run.run_id }}</td>
-              <td>Compliance Review</td>
-              <td>{{ run.requirements }}</td>
-              <td>{{ run.decisions }}</td>
-              <td>{% if run.accuracy is not none %}{{ "%.1f"|format(run.accuracy * 100) }}%{% else %}n/a{% endif %}</td>
-              <td>{{ run.steps }}</td>
-              <td>{% if run.planner_mode == "llm" %}<span class="badge badge-llm">LLM</span>{% else %}{{ run.planner_mode }}{% endif %}</td>
-              <td>{{ run.date_label }}</td>
-              <td>
-                <div class="cc-actions">
-                  <a class="btn-sm btn-outline" href="{{ run.view_url }}">View</a>
-                  <a class="btn-sm btn-outline" href="{{ run.workflow_url }}">Workflow</a>
-                  <a class="btn-sm btn-outline" href="{{ run.live_url }}">Replay</a>
-                  <a class="btn-sm btn-outline" href="{{ run.download_url }}">Artifacts</a>
-                </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="run-list">
+        {% for run in run_rows %}
+          <article class="card">
+            <div class="card-meta">
+              <small>{{ run.run_id }}</small>
+              {% if run.planner_mode == 'llm' %}
+                <span class="status-pill status-good">LLM</span>
+              {% else %}
+                <span class="status-pill status-muted">{{ run.planner_mode }}</span>
+              {% endif %}
+            </div>
+            <h3>{{ run.title if run.title else run.run_id }}</h3>
+            <p class="analysis-copy" style="margin-top: 10px;">{{ run.requirements }} requirements &middot; {{ run.decisions }} decisions &middot; {{ run.steps }} steps</p>
+            <p class="analysis-copy" style="margin-top: 6px;">Accuracy: {% if run.accuracy is not none %}{{ "%.1f"|format(run.accuracy * 100) }}%{% else %}n/a{% endif %} &middot; {{ run.date_label }}</p>
+            <div class="inline-actions" style="margin-top: 12px;">
+              <a class="inline-action secondary-link" href="{{ run.view_url }}">View</a>
+              <a class="inline-action secondary-link" href="{{ run.workflow_url }}">Workflow</a>
+              <a class="inline-action secondary-link" href="{{ run.live_url }}">Replay</a>
+              <a class="inline-action secondary-link" href="{{ run.download_url }}">Artifacts</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
     {% else %}
-      <p>No completed runs found.</p>
+      <p class="empty-copy">No completed runs found.</p>
     {% endif %}
-  </section>
+  </div>
 {% endblock %}

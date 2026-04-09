@@ -1,123 +1,101 @@
 {% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel hero-panel">
+    <p class="eyebrow">Pipeline overview</p>
+    <div class="stats-grid">
+      <div class="hero-stat hero-stat-accent">
+        <span>Contracts tracked</span>
+        <strong>{{ pipeline.total }}</strong>
+      </div>
+      <div class="hero-stat">
+        <span>Pipeline value</span>
+        <strong>${{ pipeline.value_millions }}M</strong>
+      </div>
+      <div class="hero-stat">
+        <span>In review</span>
+        <strong>{{ pipeline.by_stage.review }}</strong>
+      </div>
+      <div class="hero-stat">
+        <span>Active contracts</span>
+        <strong>{{ pipeline.by_stage.active }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <a href="/run-upload" class="primary-action" style="display:block; text-align:center; text-decoration:none;">New compliance run</a>
+  </div>
+{% endblock %}
+
 {% block content %}
-<div class="hero-section">
-  <h1>Contract Operations Dashboard</h1>
-  <p class="hero-subtitle">
-    AI-powered document operations for IT services contracting. Our agent team handles compliance review,
-    gap analysis, evidence retrieval, and proposal drafting so analysts can focus on strategy and winning.
-  </p>
-</div>
-
-<div class="pipeline-bar">
-  <div class="pipeline-stat">
-    <span class="stat-number">{{ pipeline.total }}</span>
-    <span class="stat-label">Contracts Tracked</span>
-  </div>
-  <div class="pipeline-stat">
-    <span class="stat-number">${{ pipeline.value_millions }}M</span>
-    <span class="stat-label">Pipeline Value</span>
-  </div>
   {% for stage in stages %}
-    <div class="pipeline-stat">
-      <span class="stat-number">{{ pipeline.by_stage.get(stage.key, 0) }}</span>
-      <span class="stat-label">{{ stage.icon }} {{ stage.label }}</span>
-    </div>
-  {% endfor %}
-</div>
+    {% set stage_contracts = contracts | selectattr("stage", "equalto", stage.key) | list %}
+    {% if stage_contracts %}
+      <div class="panel">
+        <div class="section-heading">
+          <h2>{{ stage.label }}</h2>
+          <span class="section-badge">{{ stage_contracts | length }}</span>
+        </div>
+        <p class="section-copy">{{ stage.description }}</p>
 
-{% for stage in stages %}
-  {% set stage_contracts = contracts | selectattr("stage", "equalto", stage.key) | list %}
-  {% if stage_contracts %}
-    <div class="stage-group">
-      <div class="stage-group-header">
-        <h2>{{ stage.icon }} {{ stage.label }}</h2>
-        <span class="stage-description">{{ stage.description }}</span>
-      </div>
+        <div class="card-grid" style="margin-top: 18px;">
+          {% for c in stage_contracts %}
+            <div class="card">
+              <div class="card-meta">
+                <small>{{ c.agency }}</small>
+                <small style="color: var(--good); font-weight: 600;">{{ c.value }}</small>
+              </div>
+              <h3>{{ c.title }}</h3>
+              <p class="analysis-copy">{{ c.summary }}</p>
 
-      <div class="contract-grid">
-        {% for c in stage_contracts %}
-          <div class="contract-card">
-            <div class="cc-top">
-              <span class="cc-agency">{{ c.agency }}</span>
-              <span class="cc-value">{{ c.value }}</span>
-            </div>
+              {% if c.due_date %}
+                <p class="section-copy" style="color: var(--warn); margin-top: 8px;">Due {{ c.due_date }}</p>
+              {% endif %}
 
-            <div class="cc-id">{{ c.id }}</div>
-            <h3 class="cc-title">{{ c.title }}</h3>
-            <p class="cc-summary">{{ c.summary }}</p>
-
-            {% if c.due_date %}
-              <div class="cc-due">📅 {{ c.due_date }}</div>
-            {% endif %}
-
-            <div class="cc-status">{{ c.our_status }}</div>
-
-            {% if c._run %}
-              <div class="cc-agent-results">
-                <div class="cc-results-header">Agent Team Results</div>
-                <div class="cc-badges">
-                  <span class="badge badge-compliant">✅ {{ c._run.compliant }} compliant</span>
-                  <span class="badge badge-partial">⚠️ {{ c._run.partial }} partial</span>
-                  {% if c._run.not_addressed > 0 %}
-                    <span class="badge badge-not-addressed">❓ {{ c._run.not_addressed }} not addressed</span>
-                  {% endif %}
-                </div>
-                <div class="cc-metrics">
-                  <span>{{ c._run.planning_steps }} agent steps ({{ c._run.planner_mode }})</span>
-                  <span>
-                    Confidence:
-                    {% if c._run.confidence_min is not none %}
-                      {{ "%.2f" | format(c._run.confidence_min) }} - {{ "%.2f" | format(c._run.confidence_max) }}
-                    {% else %}
-                      n/a
+              {% if c._run %}
+                <div style="margin: 12px 0; padding: 12px; background: var(--accent-soft); border-radius: var(--radius-sm);">
+                  <p class="eyebrow" style="margin-bottom: 6px;">Agent team results</p>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <span class="status-pill status-good">{{ c._run.compliant }} compliant</span>
+                    <span class="status-pill status-warn">{{ c._run.partial }} partial</span>
+                    {% if c._run.not_addressed > 0 %}
+                      <span class="status-pill status-muted">{{ c._run.not_addressed }} not addressed</span>
                     {% endif %}
-                  </span>
-                  {% if c._run.accuracy is not none %}
-                    <span>Accuracy: {{ "%.0f" | format(c._run.accuracy * 100) }}%</span>
+                  </div>
+                  <small style="color: var(--muted);">{{ c._run.planning_steps }} steps &middot; {{ c._run.planner_mode }} planned &middot; confidence {% if c._run.confidence_min is not none %}{{ '%.2f'|format(c._run.confidence_min) }}-{{ '%.2f'|format(c._run.confidence_max) }}{% else %}n/a{% endif %}</small>
+                </div>
+              {% endif %}
+
+              {% if c.performance is defined and c.performance %}
+                <div style="margin: 12px 0;">
+                  {% if c.performance.sla_metrics is defined %}
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      {% for m in c.performance.sla_metrics[:3] %}
+                        <span class="badge">{{ m.name }}: {{ m.actual }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  {% if c.performance.cpars is defined and c.performance.cpars is mapping %}
+                    <span class="status-pill status-good" style="margin-top: 8px;">CPARS: {{ c.performance.cpars.overall }}</span>
                   {% endif %}
                 </div>
-              </div>
-            {% endif %}
+              {% endif %}
 
-            {% if c.performance is defined and c.performance %}
-            <div class="cc-performance-mini">
-              {% if c.performance.sla_metrics is defined %}
-              <div class="perf-row">
-                {% for m in c.performance.sla_metrics[:3] %}
-                <span class="perf-chip {% if m.status == 'exceeded' %}chip-green{% elif m.status == 'met' %}chip-blue{% else %}chip-yellow{% endif %}">
-                  {{ m.name }}: <strong>{{ m.actual }}</strong>
-                </span>
-                {% endfor %}
+              <div class="inline-actions" style="margin-top: 12px;">
+                {% if c.run_id %}
+                  <a href="/runs/{{ c.run_id }}" class="inline-action">View analysis</a>
+                  <a href="/runs/{{ c.run_id }}/workflow" class="inline-action secondary-link">Workflow</a>
+                {% endif %}
+                {% if c.stage == 'solicitation' %}
+                  <a href="/run-upload" class="inline-action">Start review</a>
+                {% endif %}
+                <a href="/contracts/{{ c.id }}" class="inline-action secondary-link">Details</a>
               </div>
-              {% endif %}
-              {% if c.performance.cpars is defined and c.performance.cpars is mapping %}
-              <div class="perf-row">
-                <span class="perf-chip chip-green">CPARS: {{ c.performance.cpars.overall }}</span>
-              </div>
-              {% endif %}
-              {% if c.performance.migration_progress is defined %}
-              <div class="mini-progress">
-                <div class="mini-progress-bar" style="width: {{ (c.performance.migration_progress.migrated / c.performance.migration_progress.total_workloads * 100) | round }}%"></div>
-                <span class="mini-progress-text">{{ c.performance.migration_progress.migrated }}/{{ c.performance.migration_progress.total_workloads }} migrated</span>
-              </div>
-              {% endif %}
             </div>
-            {% endif %}
-
-            <div class="cc-actions">
-              {% if c.run_id %}
-                <a href="/runs/{{ c.run_id }}" class="btn-sm">View Analysis</a>
-                <a href="/runs/{{ c.run_id }}/workflow" class="btn-sm btn-outline">Agent Workflow</a>
-              {% endif %}
-              {% if c.stage == 'solicitation' %}
-                <a href="/run-upload" class="btn-sm btn-green">Start Agent Review</a>
-              {% endif %}
-              <a href="/contracts/{{ c.id }}" class="btn-sm btn-outline">Full Details</a>
-            </div>
-          </div>
-        {% endfor %}
+          {% endfor %}
+        </div>
       </div>
-    </div>
-  {% endif %}
-{% endfor %}
+    {% endif %}
+  {% endfor %}
 {% endblock %}

@@ -56,7 +56,7 @@ for (const button of filterButtons) {
   button.addEventListener("click", () => {
     activeCategory = button.dataset.activityFilter || "all";
     for (const candidate of filterButtons) {
-      candidate.classList.toggle("active", candidate === button);
+      candidate.classList.toggle("is-active", candidate === button);
     }
     applyActivityFilters();
   });

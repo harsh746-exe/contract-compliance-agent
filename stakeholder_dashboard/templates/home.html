@@ -1,86 +1,74 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <h2>System Status</h2>
-    <div class="pipeline-bar">
-      <div class="pipeline-stat"><span class="stat-number">{{ system_status.total_runs_completed }}</span><span class="stat-label">Runs Completed</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ system_status.total_documents_processed }}</span><span class="stat-label">Documents Processed</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ system_status.total_decisions_made }}</span><span class="stat-label">Decisions Made</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ system_status.llm_provider }}</span><span class="stat-label">LLM Provider</span></div>
-      <div class="pipeline-stat"><span class="stat-number">{{ system_status.orchestrator_model }}</span><span class="stat-label">Orchestrator Model</span></div>
-    </div>
-  </section>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Workspace status</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Runs completed</dt><dd>{{ system_status.total_runs_completed }}</dd></div>
+      <div><dt>Documents processed</dt><dd>{{ system_status.total_documents_processed }}</dd></div>
+      <div><dt>Decisions made</dt><dd>{{ system_status.total_decisions_made }}</dd></div>
+      <div><dt>Provider</dt><dd>{{ system_status.llm_provider }}</dd></div>
+      <div><dt>Model</dt><dd>{{ system_status.orchestrator_model }}</dd></div>
+    </dl>
+  </div>
 
-  <section class="card">
-    <div class="cc-top">
-      <h2>Run Summaries</h2>
+  <div class="panel">
+    <div class="inline-actions">
+      <form action="/run-demo" method="post" data-loading-copy="Running default scenario...">
+        <button class="primary-action" type="submit">Run default scenario</button>
+      </form>
+      <a class="secondary-action" href="/run-upload">Upload and run custom</a>
     </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Run summaries</h2>
+      <span class="section-badge">{{ run_cards | length }}</span>
+    </div>
+
     {% if run_cards %}
-      <div class="contract-grid">
+      <div class="card-grid">
         {% for run in run_cards %}
-          <article class="contract-card">
-            <div class="cc-top">
-              <div>
-                <h3>{{ run.title }}</h3>
-                <p class="cc-status">{{ run.run_id }}</p>
-              </div>
-              {% if run.can_archive %}
-                <form action="{{ run.archive_url }}" method="post" class="inline-form" data-confirm="Archive this run card from overview?">
-                  <button type="submit" class="btn-sm btn-outline" title="Archive run">×</button>
-                </form>
+          <article class="card">
+            <div class="card-meta">
+              <small>{{ run.run_id }}</small>
+              {% if run.planner_mode == "llm" %}
+                <span class="status-pill status-good">LLM planned</span>
+              {% else %}
+                <span class="status-pill status-muted">{{ run.planner_mode | upper }}</span>
               {% endif %}
             </div>
-            <p>{{ run.requirements }} requirements · {{ run.steps }} steps ({% if run.planner_mode == "llm" %}LLM-planned{% else %}{{ run.planner_mode|upper }}{% endif %})</p>
-            <p>
-              <span class="badge badge-compliant">✅ {{ run.compliant }} compliant</span>
-              <span class="badge badge-partial">⚠️ {{ run.partial }} partial</span>
-              <span class="badge badge-not-addressed">❓ {{ run.not_addressed }} not addressed</span>
+            <h3>{{ run.title }}</h3>
+            <p class="analysis-copy" style="margin-top: 8px;">
+              {{ run.requirements }} requirements and {{ run.steps }} planning steps
             </p>
-            <p>
-              Confidence:
-              {% if run.confidence_min is not none %}
-                {{ "%.2f"|format(run.confidence_min) }} - {{ "%.2f"|format(run.confidence_max) }} (mean {{ "%.2f"|format(run.confidence_mean) }})
-              {% else %}
-                n/a
-              {% endif %}
-            </p>
-            <p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+              <span class="status-pill status-good">{{ run.compliant }} compliant</span>
+              <span class="status-pill status-warn">{{ run.partial }} partial</span>
+              <span class="status-pill status-muted">{{ run.not_addressed }} not addressed</span>
+            </div>
+            <p class="analysis-copy" style="margin-top: 10px;">
               Accuracy:
               {% if run.accuracy is not none %}
                 {{ "%.1f"|format(run.accuracy * 100) }}%
               {% else %}
                 n/a
               {% endif %}
-              |
-              Kappa:
-              {% if run.cohen_kappa is not none %}
-                {{ "%.3f"|format(run.cohen_kappa) }}
-              {% else %}
-                n/a
-              {% endif %}
             </p>
-            <div class="cc-actions">
-              <a class="btn-sm btn-outline" href="{{ run.view_url }}">View Details</a>
-              <a class="btn-sm btn-outline" href="{{ run.workflow_url }}">View Workflow</a>
-              <a class="btn-sm btn-outline" href="{{ run.live_url }}">▶ Replay</a>
-              <a class="btn-sm btn-outline" href="{{ run.download_url }}">Download</a>
+            <div class="inline-actions" style="margin-top: 12px;">
+              <a class="inline-action secondary-link" href="{{ run.view_url }}">View details</a>
+              <a class="inline-action secondary-link" href="{{ run.workflow_url }}">Workflow</a>
+              <a class="inline-action secondary-link" href="{{ run.live_url }}">Replay</a>
+              <a class="inline-action secondary-link" href="{{ run.download_url }}">Download</a>
             </div>
           </article>
         {% endfor %}
       </div>
     {% else %}
-      <p>No completed runs found.</p>
+      <p class="empty-copy">No completed runs found.</p>
     {% endif %}
-  </section>
-
-  <section class="card">
-    <h2>Quick Actions</h2>
-    <div class="cc-actions">
-      <form action="/run-demo" method="post" data-loading-copy="Running default scenario...">
-        <button class="btn-sm" type="submit">Run Default Scenario</button>
-      </form>
-      <a class="btn-sm btn-outline" href="/run-upload">Upload &amp; Run Custom</a>
-    </div>
-  </section>
+  </div>
 {% endblock %}

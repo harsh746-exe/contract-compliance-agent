@@ -1,21 +1,42 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <div class="cc-top">
-      <h2>{{ file_entry.title }}</h2>
-      <div class="cc-actions">
-        <a class="btn-sm btn-outline" href="/files">Back to Files</a>
-        <a class="btn-sm btn-outline" href="{{ file_entry.download_url }}">Download</a>
-      </div>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">File metadata</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Root</dt><dd>{{ file_entry.root_label }}</dd></div>
+      <div><dt>Type</dt><dd>{{ file_entry.kind }}</dd></div>
+      <div><dt>Size</dt><dd>{{ file_entry.size_label }}</dd></div>
+      <div><dt>Modified</dt><dd>{{ file_entry.modified_label }}</dd></div>
+    </dl>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/files">Back to files</a>
+      <a class="inline-action secondary-link" href="{{ file_entry.download_url }}">Download</a>
     </div>
-    <p><strong>Root:</strong> {{ file_entry.root_label }}</p>
-    <p><strong>Path:</strong> {{ file_entry.path_label }}</p>
-    <p><strong>Type:</strong> {{ file_entry.kind }} · {{ file_entry.size_label }}</p>
-  </section>
+  </div>
+{% endblock %}
 
-  <section class="card">
-    <h2>Preview</h2>
-    <pre>{{ file_entry.preview }}</pre>
-  </section>
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>{{ file_entry.title }}</h2>
+      <span class="section-badge">{{ file_entry.kind }}</span>
+    </div>
+    <dl class="info-list" style="margin-top: 12px;">
+      <div><dt>Path</dt><dd>{{ file_entry.path_label }}</dd></div>
+      <div><dt>Relative</dt><dd>{{ file_entry.relative_path }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Preview</h2>
+      <span class="section-badge">{{ file_entry.size_label }}</span>
+    </div>
+    {% if file_entry.preview %}
+      <pre>{{ file_entry.preview }}</pre>
+    {% else %}
+      <p class="empty-copy">Preview unavailable for this file.</p>
+    {% endif %}
+  </div>
 {% endblock %}

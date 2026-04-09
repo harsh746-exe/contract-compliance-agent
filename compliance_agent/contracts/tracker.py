@@ -19,13 +19,13 @@ from typing import Optional
 
 
 STAGES = [
-    {"key": "forecast", "label": "Forecast", "description": "Identified opportunity, not yet solicited", "color": "#6366f1", "icon": "🔭"},
-    {"key": "solicitation", "label": "Active Solicitation", "description": "RFI or RFP released, response being prepared", "color": "#3b82f6", "icon": "📋"},
-    {"key": "review", "label": "Compliance Review", "description": "Agent team analyzing SOW against proposal", "color": "#f59e0b", "icon": "🔍"},
-    {"key": "drafting", "label": "Proposal Drafting", "description": "Agent team drafting or refining proposal sections", "color": "#f97316", "icon": "✏️"},
-    {"key": "submitted", "label": "Submitted", "description": "Proposal submitted, awaiting award decision", "color": "#64748b", "icon": "📤"},
-    {"key": "active", "label": "Active Contract", "description": "Awarded and performing", "color": "#22c55e", "icon": "✅"},
-    {"key": "completed", "label": "Completed", "description": "Contract complete, available as past performance", "color": "#94a3b8", "icon": "📁"},
+    {"key": "forecast", "label": "Forecast", "description": "Identified opportunity, not yet solicited", "color": "#6366f1", "icon": "forecast"},
+    {"key": "solicitation", "label": "Active Solicitation", "description": "RFI or RFP released, response being prepared", "color": "#3b82f6", "icon": "solicitation"},
+    {"key": "review", "label": "Compliance Review", "description": "Agent team analyzing SOW against proposal", "color": "#f59e0b", "icon": "review"},
+    {"key": "drafting", "label": "Proposal Drafting", "description": "Agent team drafting or refining proposal sections", "color": "#f97316", "icon": "drafting"},
+    {"key": "submitted", "label": "Submitted", "description": "Proposal submitted, awaiting award decision", "color": "#64748b", "icon": "submitted"},
+    {"key": "active", "label": "Active Contract", "description": "Awarded and performing", "color": "#22c55e", "icon": "active"},
+    {"key": "completed", "label": "Completed", "description": "Contract complete, available as past performance", "color": "#94a3b8", "icon": "completed"},
 ]
 
 STAGE_MAP = {s["key"]: s for s in STAGES}

@@ -1,33 +1,53 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <section class="card">
-    <div class="cc-top">
-      <h2>{{ event.title }}</h2>
-      <a class="btn-sm btn-outline" href="/activity">Back to Activity</a>
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Event metadata</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Run</dt><dd><a class="text-link" href="/runs/{{ run.scope }}">{{ run.run_id }}</a></dd></div>
+      <div><dt>Timestamp</dt><dd>{{ event.timestamp_label }}</dd></div>
+      <div><dt>Agent</dt><dd>{{ event.agent_label }}</dd></div>
+    </dl>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/activity">Back to activity</a>
     </div>
-    <p>{{ event.comment }}</p>
-    <p><strong>Run:</strong> <a href="/runs/{{ run.scope }}">{{ run.run_id }}</a></p>
-    <p><strong>Timestamp:</strong> {{ event.timestamp_label }}</p>
-    <p><strong>Agent:</strong> {{ event.agent_label }}</p>
-  </section>
+  </div>
+{% endblock %}
 
-  <section class="card">
-    <h2>Input</h2>
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>{{ event.title }}</h2>
+      <span class="section-badge">Event</span>
+    </div>
+    <p class="section-copy">{{ event.comment }}</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Input</h2>
+      <span class="section-badge">Payload</span>
+    </div>
     <pre>{{ event.input_json }}</pre>
-  </section>
+  </div>
 
-  <section class="card">
-    <h2>Output / Payload</h2>
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Output</h2>
+      <span class="section-badge">Payload</span>
+    </div>
     <pre>{{ event.output_json if event.output_json != '{}' else event.payload_json }}</pre>
-  </section>
+  </div>
 
   {% if related_requirement %}
-    <section class="card">
-      <h2>Linked Requirement</h2>
-      <p><strong>{{ related_requirement.id }}</strong> · {{ related_requirement.status }}</p>
-      <p>{{ related_requirement.text }}</p>
-      <p>{{ related_requirement.explanation }}</p>
-    </section>
+    <div class="panel">
+      <div class="section-heading">
+        <h2>Linked requirement</h2>
+        <span class="section-badge">{{ related_requirement.id }}</span>
+      </div>
+      <p class="analysis-copy"><strong>{{ related_requirement.id }}</strong> - {{ related_requirement.status }}</p>
+      <p class="analysis-copy" style="margin-top: 8px;">{{ related_requirement.text }}</p>
+      <p class="analysis-copy" style="margin-top: 8px;">{{ related_requirement.explanation }}</p>
+    </div>
   {% endif %}
 {% endblock %}
