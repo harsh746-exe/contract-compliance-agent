@@ -1,0 +1,84 @@
+VA OFFICE OF INFORMATION AND TECHNOLOGY (OIT) — ORGANIZATIONAL OVERVIEW
+
+Compiled from public sources, industry day materials, and partner intelligence.
+Last updated: March 2026
+
+LEADERSHIP
+- Assistant Secretary for IT / CIO: Vacant as of March 2026; Acting CIO duties delegated to Principal Deputy Assistant Secretary Karen E. Fields.
+- Deputy CIO for IT Operations: Mark L. Sweeney. Responsible for day-to-day IT service delivery, enterprise operations metrics, and operational risk posture.
+- Deputy CIO for Information Security (CISO): Dr. Rochelle N. Grant. Oversees VA CSOC, Zero Trust Architecture implementation, cyber incident management, and FISMA reporting.
+- Deputy CIO for Enterprise Program Management: Thomas J. Avery. Oversees major IT acquisitions, governance boards, and contract portfolio planning.
+
+NETWORK AND INFRASTRUCTURE DIVISION
+Reports to Deputy CIO for IT Operations. Responsible for:
+- Enterprise network architecture and engineering
+- WAN/LAN infrastructure management
+- Data center operations
+- Cloud infrastructure (VAEC)
+- Current NOC contract: held by Frontier Nexus Federal Services, expires Q4 FY2026
+
+Division structure and influence map:
+- Executive Director, Network and Infrastructure: Sets technical strategy and approves annual modernization priorities.
+- Director, Enterprise Networking: Owns campus core standards, WAN strategy, and VISN-level integration policy.
+- Director, Operations Engineering: Owns network reliability targets, major incident review board, and change governance quality gates.
+- Director, Cloud Connectivity and Edge Services: Coordinates cloud ingress/egress, east-west segmentation requirements, and policy alignment with CSOC.
+
+KEY PROCUREMENT CONTACTS
+- Contracting Officer: VA Technology Acquisition Center (TAC), Eatontown, NJ.
+- COR: TBD (typically assigned from Network and Infrastructure Division).
+- Technical Evaluation: Conducted by Network Engineering team leads and operations managers.
+- Source Selection Advisor: Usually aligned to Enterprise Program Management for service contracts above $50M total potential value.
+
+BUDGET CONTEXT
+VA OIT FY2026 budget: approximately $6.2 billion.
+Infrastructure and Operations: estimated 35% of IT budget.
+NOC services historically funded under IT Operations allocation, with supplemental modernization funding for tooling transitions and cloud connectivity enhancements.
+
+Observed spending signals relevant to this procurement:
+- Strong emphasis on reducing avoidable outages at medical centers and high-volume outpatient facilities.
+- Increased scrutiny of labor-only proposals that do not include automation-enabled productivity gains.
+- Preference for offerors demonstrating concrete staffing retention controls and measurable reduction in mean-time-to-restore.
+
+INCUMBENT INFORMATION
+Current NOC services provided under contract 36C10X21D0041 / Task Order 36C10X21F0158, awarded FY2021.
+Estimated team size: 20-25 FTEs.
+Reported challenges with staffing retention and P1 response time compliance (per FY2025 quarterly reviews).
+Additional observed incumbent issues:
+- Higher-than-target attrition on overnight shift analysts.
+- Delayed closure quality on recurring WAN carrier incidents.
+- Uneven documentation quality during surge changes tied to SD-WAN cutovers.
+
+STRATEGIC DIRECTION
+- VA migrating enterprise monitoring from SolarWinds to ServiceNow ITOM (FY2027).
+- SD-WAN deployment underway (replacing legacy MPLS at approximately 400 sites through FY2027).
+- Zero Trust Architecture initiative requires tighter micro-segmentation and policy-based traffic controls.
+- VA CSOC expanding threat hunting capabilities; closer NOC/SOC integration expected.
+- Enterprise push for standardized post-incident problem management tied to repeat-event prevention metrics.
+
+TEAMING / COMPETITIVE LANDSCAPE
+Expected full and open competition with strong participation from existing VA primes.
+Known interested parties:
+- Frontier Nexus Federal Services (incumbent) — likely to re-compete.
+- Peraton — strong VA enterprise operations footprint.
+- SAIC — recent VA network engineering and integration wins.
+- Leidos — VISN-level support contracts and staffing bench depth.
+- Booz Allen Hamilton — likely as a teammate/subcontractor in cyber-integration-heavy proposals.
+
+OUR COMPETITIVE POSITION (APEX MERIDIAN TECHNOLOGIES)
+Strengths:
+- OASIS+ vehicle access and recent civilian agency operations wins.
+- Relevant past performance (DOI Help Desk, DHS Cybersecurity Operations, SSA ITSM modernization).
+- Key personnel with direct VA experience (David Park served as VA network architect from 2019-2021).
+- Demonstrated SOC/NOC operating model that can support integrated incident handling.
+
+Gaps:
+- No direct prime VA enterprise NOC past performance.
+- Need to demonstrate mature SolarWinds Orion and ServiceNow ITOM coexistence capability.
+- Staffing plan must show credible 24/7 coverage depth and low attrition risk controls.
+
+RECOMMENDED BID THEMES
+1. Clinical mission continuity first: frame all NOC outcomes around patient-care service availability and restoration speed.
+2. Transition certainty: provide a phased transition approach with objective readiness gates and measurable risk burn-down.
+3. Tooling modernization readiness: show practical SolarWinds-to-ServiceNow ITOM migration support without service disruption.
+4. Workforce stability: present retention incentives, structured shift differential strategy, and bench-backed surge coverage.
+5. Integrated cyber operations: emphasize repeatable NOC/CSOC handoff patterns and joint major incident playbooks.

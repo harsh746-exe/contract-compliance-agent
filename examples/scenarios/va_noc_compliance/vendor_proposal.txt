@@ -1,0 +1,50 @@
+VA NOC Managed Services Proposal Response (Draft)
+
+1. Program Overview
+Our team will deliver a 24x7x365 VA-aligned NOC operation with centralized monitoring, incident management, change coordination, and executive reporting for the nationwide VA enterprise network.
+
+2. Network Monitoring and Event Management
+- We will monitor WAN circuits, core/distribution switching, firewalls, load balancers, DNS/DHCP/NTP, wireless, and VPN services through VA-provided monitoring tools.
+- We will tune thresholds to reduce false positives and protect patient-care-impacting alert sensitivity.
+- We will review correlation rules monthly and after major incidents.
+- We will remediate identified monitoring gaps on a documented action plan.
+
+3. Incident Management
+- Incidents will be triaged and tracked under ITIL-aligned workflows with severity, impact, affected site(s), action timeline, and closure notes.
+- P1 and P2 incidents will include active bridge facilitation and routine status updates to stakeholders.
+- We will provide after-action documentation for high-severity events.
+
+4. Change Management Support
+- We will prepare implementation plans and execute approved maintenance-window changes.
+- Post-change verification and rollback support will be included for normal and emergency changes.
+- CMDB updates will be performed by the operations team.
+
+5. Reporting and Capacity Planning
+- Daily operations summaries and weekly dashboards will be delivered.
+- Monthly executive reporting will include incident trends, SLA posture, and improvement opportunities.
+- Capacity forecasting will include VPN growth and WAN utilization planning.
+
+6. Staffing Model
+- Day shift staffing: 6 analysts.
+- Night shift staffing: 4 analysts.
+- Weekend/holiday coverage: 4 analysts per shift.
+- NOC Manager and Senior Network Analyst key personnel will be assigned at award.
+- The team will maintain workforce continuity planning and surge support rotation.
+
+7. Service Levels
+- NOC operational availability target: 99.99% monthly (excluding approved maintenance).
+- Monitoring onboarding target for newly registered devices: within 24 hours.
+- Documentation and CMDB quality checks will be included in quarterly governance.
+
+8. Security and Compliance
+- Personnel will follow VA Directive/Handbook 6500 controls and complete annual role-based cybersecurity training.
+- Team members will use VA-approved remote access methods and support FISMA/ATO documentation needs.
+- Potential security incidents will be escalated through VA channels.
+
+9. Transition Approach
+- We will execute transition-in with knowledge transfer, parallel operations, and independent operations phases.
+- Transition-out support and editable handoff documentation will be provided at contract completion.
+
+10. Assumptions and Open Items
+- Public Trust onboarding timelines depend on VA adjudication lead time.
+- Final response/resolution SLA minute thresholds and report due times will be confirmed at kickoff.

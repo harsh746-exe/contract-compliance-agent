@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Replay controls</p>
+    <p class="section-copy">Play through the event stream for <strong>{{ scope }}</strong>.</p>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <button id="btn-play" class="secondary-action" type="button">Play</button>
+      <button id="btn-pause" class="secondary-action" type="button">Pause</button>
+      <button id="btn-skip" class="secondary-action" type="button">Skip to end</button>
+    </div>
+    <label class="search-field" style="margin-top: 14px;">
+      <span>Speed</span>
+      <select id="speed-select">
+        <option value="1000">Normal</option>
+        <option value="500">Fast</option>
+        <option value="2000">Slow</option>
+        <option value="100">Instant</option>
+      </select>
+    </label>
+    <div id="agent-bar" class="agent-pill-list" style="margin-top: 14px;"></div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel" id="current-plan" hidden>
+    <div class="section-heading">
+      <h2>Current plan step</h2>
+      <span class="section-badge plan-step-number"></span>
+    </div>
+    <p class="analysis-copy plan-action"></p>
+    <p class="section-copy plan-reasoning" style="margin-top: 8px;"></p>
+    <p class="section-copy plan-confidence" style="margin-top: 6px;"></p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Live run replay</h2>
+      <span class="section-badge" id="event-count">0 events</span>
+    </div>
+    <div id="event-timeline" class="activity-list"></div>
+  </div>
+
+  <script>
+    let events = [];
+    let currentIndex = 0;
+    let playInterval = null;
+    let speed = 1000;
+
+    async function loadEvents() {
+      const resp = await fetch('/runs/{{ scope }}/events');
+      const data = await resp.json();
+      events = data.events || [];
+      const badge = document.getElementById('event-count');
+      if (badge) badge.textContent = `${events.length} events`;
+    }
+
+    function startReplay() {
+      if (playInterval) clearInterval(playInterval);
+      playInterval = setInterval(() => {
+        if (currentIndex >= events.length) {
+          clearInterval(playInterval);
+          playInterval = null;
+          return;
+        }
+        renderEvent(events[currentIndex]);
+        currentIndex += 1;
+      }, speed);
+    }
+
+    function pauseReplay() {
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+      }
+    }
+
+    function skipToEnd() {
+      pauseReplay();
+      while (currentIndex < events.length) {
+        renderEvent(events[currentIndex]);
+        currentIndex += 1;
+      }
+    }
+
+    function setSpeed(ms) {
+      speed = parseInt(ms, 10);
+      if (playInterval) startReplay();
+    }
+
+    function eventTypePill(event) {
+      const type = event.type || 'system';
+      if (type === 'planning') return '<span class="status-pill status-warn">planning</span>';
+      if (type === 'skill_result' || type === 'result') return '<span class="status-pill status-good">result</span>';
+      if (type === 'agent_lifecycle') return '<span class="status-pill status-muted">lifecycle</span>';
+      if (type === 'delegation' || type === 'skill_use') return '<span class="status-pill status-muted">action</span>';
+      return '<span class="status-pill status-muted">system</span>';
+    }
+
+    function renderEvent(event) {
+      const timeline = document.getElementById('event-timeline');
+      const card = document.createElement('article');
+      card.className = 'activity-card';
+
+      let details = event.detail || '';
+      if (event.type === 'planning') {
+        const confidence = event.confidence || {};
+        details = event.reasoning || details;
+        if (confidence && confidence.mean !== undefined) {
+          details += ` Confidence ${confidence.min}-${confidence.max} (mean ${confidence.mean}).`;
+        }
+        updatePlanHighlight(event);
+      }
+      if (event.type === 'agent_lifecycle') {
+        updateAgentBar(event);
+      }
+
+      card.innerHTML = `
+        <div class="activity-meta">
+          <small>${event.timestamp_label || ''}</small>
+          ${eventTypePill(event)}
+        </div>
+        <h3>${event.description || event.action || 'System event'}</h3>
+        <p class="analysis-copy" style="margin-top: 8px;">${details || ''}</p>
+      `;
+      timeline.appendChild(card);
+      timeline.scrollTop = timeline.scrollHeight;
+    }
+
+    function updateAgentBar(event) {
+      const bar = document.getElementById('agent-bar');
+      const agentId = String(event.agent || 'unknown');
+      const domId = 'agent-pill-' + agentId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      let pill = document.getElementById(domId);
+
+      if (!pill && event.action === 'spawn') {
+        pill = document.createElement('span');
+        pill.id = domId;
+        pill.className = 'agent-pill';
+        pill.textContent = agentId.replace('_agent', '').replace(/_/g, ' ');
+        bar.appendChild(pill);
+      }
+
+      if (pill && event.action === 'terminate') {
+        pill.style.background = 'var(--bad-soft)';
+        pill.style.color = 'var(--bad)';
+      }
+    }
+
+    function updatePlanHighlight(event) {
+      const panel = document.getElementById('current-plan');
+      panel.hidden = false;
+      panel.querySelector('.plan-step-number').textContent = `Step ${event.step || '?'}`;
+      panel.querySelector('.plan-action').textContent = event.action || 'Planning';
+      panel.querySelector('.plan-reasoning').textContent = event.reasoning || '';
+      const confidence = event.confidence || {};
+      panel.querySelector('.plan-confidence').textContent =
+        confidence.mean !== undefined ? `Confidence ${confidence.min}-${confidence.max} (mean ${confidence.mean})` : '';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadEvents();
+      document.getElementById('btn-play').addEventListener('click', startReplay);
+      document.getElementById('btn-pause').addEventListener('click', pauseReplay);
+      document.getElementById('btn-skip').addEventListener('click', skipToEnd);
+      document.getElementById('speed-select').addEventListener('change', (event) => setSpeed(event.target.value));
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Review snapshot</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Total reviews</dt><dd>{{ run_rows | length }}</dd></div>
+      <div><dt>AI planned</dt><dd>{{ run_rows | selectattr('planner_mode', 'equalto', 'llm') | list | length }}</dd></div>
+      <div><dt>With benchmark accuracy</dt><dd>{{ run_rows | selectattr('accuracy', 'ne', none) | list | length }}</dd></div>
+    </dl>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel hero-panel">
+    <h2>Compliance reviews and analysis</h2>
+    <p class="panel-copy">Each review below represents a complete analysis by the AI agent team. The team reads the SOW, extracts requirements, searches the proposal for evidence, and assesses compliance for each requirement.</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Completed reviews</h2>
+      <span class="section-badge">{{ run_rows | length }}</span>
+    </div>
+
+    {% if run_rows %}
+      <div class="card-grid" style="margin-top: 12px;">
+        {% for run in run_rows %}
+          {% set total = run.compliant + run.partial + run.not_addressed + run.not_compliant %}
+          <article class="card">
+            {% if total > 0 %}
+              <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-bottom: 14px;">
+                <div style="flex: {{ run.compliant }}; background: var(--good);"></div>
+                <div style="flex: {{ run.partial }}; background: var(--warn);"></div>
+                <div style="flex: {{ run.not_addressed + run.not_compliant }}; background: rgba(152,59,49,0.5);"></div>
+              </div>
+            {% endif %}
+
+            <div class="card-meta">
+              <small>{{ run.readable_title }}</small>
+              {% if run.planner_mode == 'llm' %}
+                <span class="badge" style="background: var(--accent-soft); color: var(--accent);">AI planned</span>
+              {% endif %}
+            </div>
+
+            <h3>{{ run.requirements }} requirements analyzed</h3>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0;">
+              <span class="status-pill status-good">{{ run.compliant }} met</span>
+              <span class="status-pill status-warn">{{ run.partial }} gaps</span>
+              {% if run.not_addressed + run.not_compliant > 0 %}
+                <span class="status-pill status-bad">{{ run.not_addressed + run.not_compliant }} missing</span>
+              {% endif %}
+            </div>
+
+            <div style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">
+              {{ run.planning_steps }} analysis steps &middot;
+              Confidence {{ run.confidence_min_label }}-{{ run.confidence_max_label }}
+              {% if run.accuracy is not none %} &middot; Accuracy {{ "%.0f" | format(run.accuracy * 100) }}%{% endif %}
+            </div>
+
+            <div class="inline-actions">
+              <a href="/runs/{{ run.scope }}" class="inline-action">See findings</a>
+              <a href="/runs/{{ run.scope }}/workflow" class="inline-action secondary-link">Agent workflow</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-copy">No completed reviews found.</p>
+    {% endif %}
+  </div>
+{% endblock %}

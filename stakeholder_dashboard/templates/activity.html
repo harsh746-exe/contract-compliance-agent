@@ -1,60 +1,118 @@
 {% extends "base.html" %}
 
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <div class="section-heading">
-      <h2>Filters</h2>
-      <span class="section-badge">Activity</span>
-    </div>
-    <div class="filter-group" id="activity-filter-group">
-      <button class="filter-chip is-active" type="button" data-activity-filter="all">All</button>
-      <button class="filter-chip" type="button" data-activity-filter="planning">Planning</button>
-      <button class="filter-chip" type="button" data-activity-filter="agent">Agent communication</button>
-      <button class="filter-chip" type="button" data-activity-filter="tool">Tool calls</button>
-      <button class="filter-chip" type="button" data-activity-filter="system">System events</button>
-    </div>
-    <label class="search-field" style="margin-top: 14px;">
-      <span>Run ID</span>
-      <select id="activity-run-filter">
-        <option value="all">All runs</option>
-        {% for option in run_options %}
-          <option value="{{ option.scope }}">{{ option.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </div>
-{% endblock %}
-
 {% block content %}
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Unified timeline</h2>
-      <span class="section-badge">{{ activity_feed | length }} events</span>
-    </div>
-    <div class="activity-list" id="activity-feed">
-      {% for item in activity_feed %}
-        <article class="activity-card event-card" data-category="{{ item.category }}" data-run="{{ item.run_scope }}" data-search="{{ item.search_text }}">
-          <div class="activity-meta">
-            <small>{{ item.timestamp_label }}</small>
-            {% if item.category == 'planning' %}
-              <span class="status-pill status-warn">{{ item.category_label }}</span>
-            {% elif item.category in ['agent', 'tool'] %}
-              <span class="status-pill status-good">{{ item.category_label }}</span>
-            {% elif item.category == 'system' %}
-              <span class="status-pill status-muted">{{ item.category_label }}</span>
-            {% else %}
-              <span class="status-pill status-muted">{{ item.category_label }}</span>
+<div class="ws-full">
+    <section class="panel panel-hero">
+        <p class="eyebrow">Activity</p>
+        <h1>Agent activity summary</h1>
+        <p class="desc">Review what the orchestrator decided and how the team coordinated work for the selected run.</p>
+        <div class="stats-grid">
+            <div class="stat-card stat-card-dark">
+                <div class="val">{{ activity_stats.activity_count }}</div>
+                <div class="label">Events tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">{{ activity_stats.case_count }}</div>
+                <div class="label">Reviews represented</div>
+            </div>
+            <div class="stat-card stat-card-good">
+                <div class="val">{{ activity_stats.agent_count }}</div>
+                <div class="label">Active roles</div>
+            </div>
+            <div class="stat-card {% if activity_stats.error_count > 0 %}stat-card-bad{% endif %}">
+                <div class="val">{{ activity_stats.error_count }}</div>
+                <div class="label">Errors</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-head">
+            <h2>Select review</h2>
+            <span class="section-tag section-tag-accent">{{ runs | length }} runs</span>
+        </div>
+        <div class="pills">
+            {% for run in runs %}
+            {% if 'scenario_case' not in (run.scope | lower) and not (run.scope | lower).startswith('zzz_') and 'scenario_case' not in (run.run_id | lower) and not (run.run_id | lower).startswith('zzz_') %}
+            <a href="/activity?run={{ run.scope }}" class="nav-pill {% if selected_run == run.scope %}active{% endif %}">{{ run.readable_title }}</a>
             {% endif %}
-          </div>
-          <h3>{{ item.summary }}</h3>
-          <p class="analysis-copy" style="margin-top: 8px;">{{ item.source }} -> {{ item.target or '-' }}</p>
-          <p class="analysis-copy" style="margin-top: 8px;">{{ item.details }}</p>
-          <details style="margin-top: 12px;">
-            <summary class="text-link">View payload</summary>
-            <pre style="margin-top: 10px;">{{ item.payload_json }}</pre>
-          </details>
-        </article>
-      {% endfor %}
-    </div>
-  </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% set grouped = namespace(planning=[], comms=[]) %}
+    {% for item in selected_run_activity %}
+        {% if item.type == 'planning' %}
+            {% set grouped.planning = grouped.planning + [item] %}
+        {% else %}
+            {% set grouped.comms = grouped.comms + [item] %}
+        {% endif %}
+    {% endfor %}
+
+    <section class="panel">
+        <div class="section-head">
+            <h2>Planning decisions</h2>
+            <span class="section-tag section-tag-warn">{{ grouped.planning | length }} items</span>
+        </div>
+        <p class="desc">Why the orchestrator chose each next step.</p>
+
+        {% if grouped.planning %}
+            {% for event in grouped.planning %}
+            <div class="trace-step">
+                <div class="trace-num">{{ loop.index }}</div>
+                <div class="trace-content">
+                    <div class="trace-action">{{ event.title }} <span class="trace-badge">{% if event.mode == 'llm' %}AI decided{% else %}Fallback{% endif %}</span></div>
+                    <div class="trace-reason">{{ event.detail }}</div>
+                    <div class="trace-meta">
+                        {% if event.confidence and event.confidence.mean is not none %}
+                        Confidence {{ "%.2f" | format(event.confidence.min) }}-{{ "%.2f" | format(event.confidence.max) }} (mean {{ "%.2f" | format(event.confidence.mean) }})
+                        {% else %}
+                        Confidence details were not captured for this step.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="desc" style="margin-bottom:0;">No planning decisions are available for the selected run.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="section-head">
+            <h2>Team coordination</h2>
+            <span class="section-tag section-tag-good">{{ grouped.comms | length }} summaries</span>
+        </div>
+        <p class="desc">High-level communication and execution summaries from the run.</p>
+
+        {% if grouped.comms %}
+            {% for event in grouped.comms %}
+            <div class="trace-step">
+                <div class="trace-num">{{ loop.index }}</div>
+                <div class="trace-content">
+                    <div class="trace-action">{{ event.title }}</div>
+                    <div class="trace-reason">{{ event.detail }}</div>
+                    <div class="trace-meta">Category: {{ event.type | replace('_', ' ') | lower | capitalize }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="desc" style="margin-bottom:0;">No coordination summaries are available for the selected run.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="section-head">
+            <h2>Selected run</h2>
+            <span class="section-tag section-tag-accent">Context</span>
+        </div>
+        <div class="comm-block">
+            {% if selected_run_title %}
+            Viewing activity for {{ selected_run_title }}.
+            {% else %}
+            Choose a run above to load its activity summary.
+            {% endif %}
+        </div>
+    </section>
+</div>
 {% endblock %}

@@ -1,31 +1,26 @@
-"""Compliance agents."""
+"""Compliance MCP agents."""
 
-from .requirement_extractor import RequirementExtractorAgent
-from .requirement_classifier import RequirementClassifierAgent
-from .evidence_retriever import EvidenceRetrieverAgent
-from .compliance_reasoner import ComplianceReasonerAgent
-from .confidence_scorer import ConfidenceScorerAgent
 from .orchestrator import Orchestrator
 from .intake_agent import IntakeAgent
 from .extraction_agent import ExtractionAgent
 from .retrieval_agent import RetrievalAgent
-from .compliance_agent import ComplianceAgent as AutonomousComplianceAgent
+from .compliance_agent import ComplianceAgent
 from .comparison_agent import ComparisonAgent
 from .drafting_agent import DraftingAgent
 from .qa_agent import QAAgent
+from .notification_agent import generate_notifications
+from .chat_agent import answer_question, build_context_summary
 
 __all__ = [
-    "RequirementExtractorAgent",
-    "RequirementClassifierAgent",
-    "EvidenceRetrieverAgent",
-    "ComplianceReasonerAgent",
-    "ConfidenceScorerAgent",
     "Orchestrator",
     "IntakeAgent",
     "ExtractionAgent",
     "RetrievalAgent",
-    "AutonomousComplianceAgent",
+    "ComplianceAgent",
     "ComparisonAgent",
     "DraftingAgent",
     "QAAgent",
+    "generate_notifications",
+    "answer_question",
+    "build_context_summary",
 ]

@@ -1,77 +1,68 @@
 """Baseline comparison for compliance system."""
 
+from __future__ import annotations
+
+import re
 from typing import Dict, List
 
-import config
 from compliance_agent.ingestion.document_parser import DocumentParser
-from compliance_agent.runtime import require_langchain_llm_runtime
 
 
-def _build_chat_prompt_template():
-    from langchain.prompts import ChatPromptTemplate
-
-    return ChatPromptTemplate
-
-
-def _build_default_llm():
-    require_langchain_llm_runtime()
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=config.OPENAI_MODEL,
-        temperature=0.1,
-        api_key=config.OPENAI_API_KEY,
-    )
+def _extract_requirements(policy_text: str) -> List[str]:
+    candidates = []
+    for line in policy_text.splitlines():
+        clean = line.strip()
+        if not clean:
+            continue
+        if re.search(r"\b(shall|must|required|requirement)\b", clean, re.IGNORECASE):
+            candidates.append(clean)
+    if not candidates:
+        candidates = [s.strip() for s in re.split(r"[\n\.]", policy_text) if s.strip()][:10]
+    return candidates[:25]
 
 
 class BaselineAgent:
-    """Single-agent baseline that does everything in one prompt."""
-
-    def __init__(self, llm=None):
-        self.llm = llm or _build_default_llm()
-
-        self.baseline_prompt = _build_chat_prompt_template().from_messages([
-            ("system", """You are a compliance analyst. Analyze a policy document and a response document.
-
-For each requirement in the policy, determine if the response is:
-- compliant: explicitly satisfies requirement
-- partial: related but missing specifics
-- not_compliant: contradicts requirement
-- not_addressed: no relevant content found
-
-Return JSON array with requirement_id, requirement_text, label, explanation, confidence."""),
-            ("human", """Policy Document:
-{policy_text}
-
-Response Document:
-{response_text}
-
-Analyze compliance and return JSON array of results."""),
-        ])
+    """Single-pass heuristic baseline used for evaluation comparisons."""
 
     def process(self, policy_path: str, response_path: str) -> List[Dict]:
-        """Process documents using single-agent baseline."""
+        """Process documents using a deterministic lexical baseline."""
         parser = DocumentParser()
 
         policy_chunks = parser.parse(policy_path, doc_type="policy")
         response_chunks = parser.parse(response_path, doc_type="response")
 
-        policy_text = "\n\n".join([chunk.text for chunk in policy_chunks])[:8000]
-        response_text = "\n\n".join([chunk.text for chunk in response_chunks])[:8000]
+        policy_text = "\n\n".join([chunk.text for chunk in policy_chunks])
+        response_text = "\n\n".join([chunk.text for chunk in response_chunks]).lower()
 
-        response = self.llm.invoke(
-            self.baseline_prompt.format_messages(
-                policy_text=policy_text,
-                response_text=response_text,
+        requirements = _extract_requirements(policy_text)
+        results: List[Dict] = []
+
+        for index, requirement in enumerate(requirements, start=1):
+            key_terms = [t.lower() for t in re.findall(r"[A-Za-z]{4,}", requirement)[:8]]
+            overlap = sum(1 for term in key_terms if term in response_text)
+            coverage = overlap / max(1, len(key_terms))
+
+            if coverage >= 0.7:
+                label = "compliant"
+                confidence = 0.85
+            elif coverage >= 0.35:
+                label = "partial"
+                confidence = 0.6
+            elif overlap > 0:
+                label = "not_compliant"
+                confidence = 0.45
+            else:
+                label = "not_addressed"
+                confidence = 0.25
+
+            results.append(
+                {
+                    "requirement_id": f"REQ_{index:04d}",
+                    "requirement_text": requirement,
+                    "label": label,
+                    "explanation": "Lexical overlap baseline.",
+                    "confidence": confidence,
+                }
             )
-        )
 
-        content = response.content.strip()
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-
-        import json
-
-        return json.loads(content)
+        return results

@@ -1,0 +1,8 @@
+1. TRANSITION PLAN
+The contractor shall provide a 30-day transition-in plan that identifies staffing, knowledge transfer, and risk mitigation steps.
+
+2. CYBERSECURITY REPORTING
+The contractor shall submit a monthly cybersecurity status report covering incidents, vulnerabilities, and remediation progress.
+
+3. KEY PERSONNEL
+The contractor must identify a program manager and a security lead in the proposal response.

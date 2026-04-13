@@ -6,6 +6,7 @@ import asyncio
 import csv
 import io
 import json
+import logging
 import re
 import shutil
 import tempfile
@@ -23,9 +24,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import config
-from compliance_agent import ComplianceAgent
+from compliance_agent.agents.notification_agent import generate_notifications
 from compliance_agent.ingestion.document_parser import DocumentParser
-from compliance_agent.main import run as agentic_run
+from compliance_agent.main import run as mcp_run
 from compliance_agent.scenarios import (
     extract_linear_inputs,
     load_scenario,
@@ -46,6 +47,9 @@ from compliance_agent.skills import (
 )
 from compliance_agent.skills.registry import SkillRegistry
 from evaluation import evaluate_scenario_run
+
+
+logger = logging.getLogger(__name__)
 
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -86,6 +90,177 @@ DELETABLE_ROOTS = {
     "output",
     "uploads",
 }
+
+HIDDEN_RUNS = {"zzz_execution_mode_check", "scenario_case"}
+
+STAGE_EXPLANATIONS = {
+    "forecast": "These opportunities are on our radar. No agent work yet; we are gathering intelligence and building relationships.",
+    "solicitation": "The RFP or RFI is out. Documents are ready for the agent team to begin compliance analysis.",
+    "review": "The agent team has analyzed (or is analyzing) these contracts. Open the analysis to see findings and recommended actions.",
+    "drafting": "Agents are helping draft or refine proposal responses based on compliance findings.",
+    "submitted": "The proposal is submitted. Agent analysis informed the final submission while we await an award decision.",
+    "active": "The contract is awarded and in delivery. Performance and execution metrics are tracked here.",
+    "completed": "The contract is complete. This past performance record supports future proposals.",
+}
+
+CATEGORY_DESCRIPTIONS = {
+    "opportunities": "Solicitations, proposals, and amendments for each contract. The agent team pulls SOW requirements and proposal responses from here.",
+    "past_performance": "Contract summaries, CPARS narratives, and performance data used when drafting past performance sections.",
+    "corporate": "Capability statements, certifications, and proposal templates available for corporate volume drafting.",
+    "hr": "Key personnel resumes and certifications used to verify staffing requirements.",
+    "management": "Facility information, financial data, and insurance records used for administrative volume support.",
+}
+
+ARTIFACT_LABELS = {
+    "compliance_decisions.json": "Compliance findings (JSON)",
+    "compliance_matrix.csv": "Compliance matrix (spreadsheet)",
+    "compliance_report.md": "Full compliance report",
+    "compliance_results.json": "Results summary (JSON)",
+    "evidence_map.json": "Evidence mapping",
+    "requirements.json": "Extracted requirements",
+    "audit_log.json": "Agent communication log",
+    "workflow_result.json": "Orchestrator planning trace",
+    "qa_report.json": "Quality assurance report",
+    "run_manifest.json": "Run configuration",
+    "document_manifest.json": "Document inventory",
+    "retrieval_plans.json": "Search strategy log",
+    "evaluation_metrics.json": "Accuracy evaluation",
+    "evaluation_report.md": "Evaluation report",
+    "comparison_summary.json": "Historical comparison",
+}
+
+AGENT_DESCRIPTIONS: Dict[str, Dict[str, str]] = {
+    "orchestrator": {
+        "title": "Orchestrator",
+        "role": "Team coordinator",
+        "description": "Plans the analysis workflow and decides what the team should do next based on intermediate results.",
+        "analogy": "Like a project manager running a review meeting.",
+    },
+    "intake_agent": {
+        "title": "Intake Specialist",
+        "role": "Document processing",
+        "description": "Reads uploaded documents, identifies key sections, and prepares content for downstream analysis.",
+        "analogy": "Like the person organizing the binder before a review.",
+    },
+    "extraction_agent": {
+        "title": "Requirements Analyst",
+        "role": "Requirement extraction",
+        "description": "Extracts individual requirements from the SOW and tags each by category and priority.",
+        "analogy": "Like the analyst highlighting every 'shall' statement in the SOW.",
+    },
+    "retrieval_agent": {
+        "title": "Evidence Researcher",
+        "role": "Evidence gathering",
+        "description": "Searches proposals and supporting records for evidence tied to each requirement.",
+        "analogy": "Like the reviewer cross-referencing the proposal against the checklist.",
+    },
+    "compliance_agent": {
+        "title": "Compliance Assessor",
+        "role": "Compliance judgment",
+        "description": "Assesses whether requirements are met, partially met, or missing, with confidence and rationale.",
+        "analogy": "Like the color-team reviewer marking each requirement green, yellow, or red.",
+    },
+    "comparison_agent": {
+        "title": "Historical Analyst",
+        "role": "Document comparison",
+        "description": "Compares current work against prior contracts and proposals to identify deltas and reusable content.",
+        "analogy": "Like the capture manager reviewing what was proposed last time.",
+    },
+    "drafting_agent": {
+        "title": "Proposal Writer",
+        "role": "Content generation",
+        "description": "Drafts proposal sections from requirements and evidence, then iterates based on QA feedback.",
+        "analogy": "Like the writer producing technical volume sections.",
+    },
+    "qa_agent": {
+        "title": "Quality Reviewer",
+        "role": "Quality assurance",
+        "description": "Checks outputs for completeness, consistency, and quality before delivery.",
+        "analogy": "Like the final reviewer before submission.",
+    },
+    "notification_agent": {
+        "title": "Notification Agent",
+        "role": "Monitoring and alerts",
+        "description": (
+            "Continuously monitors contract deadlines, compliance review results, SLA "
+            "performance, and staffing gaps. Generates prioritized alerts so stakeholders "
+            "know what needs attention."
+        ),
+        "analogy": "Like the program coordinator who sends the Monday morning status email.",
+    },
+    "chat_agent": {
+        "title": "Assistant",
+        "role": "Stakeholder inquiry",
+        "description": (
+            "Answers questions about contracts, compliance findings, deadlines, and system "
+            "activity. Grounded in real-time system data so answers are always current."
+        ),
+        "analogy": (
+            "Like the analyst you can ping on Slack to ask 'what's the status on the DOL proposal?'"
+        ),
+    },
+}
+
+SKILL_GROUP_DEFINITIONS = [
+    {
+        "label": "Document processing",
+        "skills": ["parse_document", "parse_pdf", "parse_docx", "parse_txt", "chunk_document"],
+        "used_by": "Intake Specialist",
+    },
+    {
+        "label": "Requirements analysis",
+        "skills": [
+            "lexical_extract",
+            "extract_requirements",
+            "llm_extract",
+            "split_compound",
+            "classify_requirements",
+            "keyword_classify",
+            "llm_classify",
+        ],
+        "used_by": "Requirements Analyst",
+    },
+    {
+        "label": "Evidence retrieval",
+        "skills": ["vector_search", "bm25_search", "rerank", "assemble_context"],
+        "used_by": "Evidence Researcher",
+    },
+    {
+        "label": "Compliance reasoning",
+        "skills": [
+            "assess_compliance",
+            "validate_citations",
+            "rules_fallback",
+            "score_confidence",
+            "flag_low_confidence",
+        ],
+        "used_by": "Compliance Assessor",
+    },
+    {
+        "label": "Comparison and drafting",
+        "skills": [
+            "match_prior_docs",
+            "compute_delta",
+            "summarize_changes",
+            "generate_outline",
+            "write_section",
+            "rewrite_section",
+            "review_draft",
+        ],
+        "used_by": "Historical Analyst, Proposal Writer",
+    },
+    {
+        "label": "Quality assurance",
+        "skills": [
+            "check_acronyms",
+            "detect_placeholders",
+            "format_check",
+            "coverage_check",
+            "final_qa_check",
+        ],
+        "used_by": "Quality Reviewer",
+    },
+]
 
 app = FastAPI(title="Compliance Operations Workspace")
 app.mount("/static", StaticFiles(directory=str(DASHBOARD_DIR / "static")), name="static")
@@ -143,6 +318,24 @@ def _format_duration(seconds: Optional[float]) -> str:
 
 def _humanize(value: str) -> str:
     return value.replace("_", " ").strip().title() if value else "Unknown"
+
+
+def _readable_run_title(run_id: str, title: str) -> str:
+    candidate = (title or "").strip()
+    if candidate and candidate.lower() != (run_id or "").lower():
+        return candidate
+    cleaned = re.sub(r"[-_]+", " ", run_id or "").strip()
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    return cleaned.title() if cleaned else "Compliance Review"
+
+
+def _is_hidden_run(scope: str, run_id: str, title: str) -> bool:
+    haystack = " ".join([scope or "", run_id or "", title or ""]).lower()
+    return any(token in haystack for token in HIDDEN_RUNS)
+
+
+def _friendly_agent_name(agent_id: str) -> str:
+    return str(agent_id or "").replace("_agent", "").replace("_", " ").strip().title() or "Unknown"
 
 
 def _summarize_text(text: str, max_chars: int = 240) -> str:
@@ -240,6 +433,8 @@ def _agentic_capabilities() -> Dict[str, Any]:
         "comparison_agent",
         "drafting_agent",
         "qa_agent",
+        "notification_agent",
+        "chat_agent",
     ]
     skills = registry.list_all()
     return {
@@ -728,7 +923,7 @@ def _build_agentic_requirement_rows(
     review_queue: Optional[List[str]] = None,
     retrieval_plans_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
-    """Build requirement rows from flat agentic workflow artifacts."""
+    """Build requirement rows using workflow artifacts."""
     decisions = _read_json(decisions_path) if decisions_path.exists() else []
     requirements = _read_json(requirements_path) if requirements_path.exists() else []
     raw_evidence_map = _read_json(evidence_map_path) if evidence_map_path and evidence_map_path.exists() else {}
@@ -1418,9 +1613,15 @@ def _artifact_groups(artifacts: Dict[str, str]) -> Dict[str, List[Dict[str, Any]
     }
     label_map = {
         "analysis_outputs": "Analysis outputs",
-        "evidence": "Evidence",
+        "evidence": "Evidence and requirements",
         "system_traces": "System traces",
         "evaluation": "Evaluation",
+    }
+    fallback_labels = {
+        "analysis_outputs": "Analysis output",
+        "evidence": "Evidence artifact",
+        "system_traces": "System trace",
+        "evaluation": "Evaluation artifact",
     }
 
     output: Dict[str, List[Dict[str, Any]]] = {key: [] for key in groups}
@@ -1439,11 +1640,16 @@ def _artifact_groups(artifacts: Dict[str, str]) -> Dict[str, List[Dict[str, Any]
                         preview = path.read_text(encoding="utf-8", errors="ignore")[:4000]
                 except Exception:
                     preview = "Preview unavailable."
+            display_label = (
+                ARTIFACT_LABELS.get(path.name)
+                or ARTIFACT_LABELS.get(f"{artifact_name}{path.suffix}")
+                or f"{fallback_labels[group_key]}: {path.name}"
+            )
             output[group_key].append(
                 {
                     "name": artifact_name,
-                    "label": path.name,
-                    "path": str(path),
+                    "label": display_label,
+                    "filename": path.name,
                     "preview": preview,
                 }
             )
@@ -1488,7 +1694,7 @@ def _infer_meta(output_dir: Path, scope: str) -> Dict[str, Any]:
         "title": meta.get("title")
         or (scenario_entry.get("name") if scenario_entry else run_id.replace("_", " ").title()),
         "mode": meta.get("mode")
-        or ("agentic" if artifacts.get("audit_log") else "linear"),
+        or ("mcp" if artifacts.get("audit_log") else "mcp"),
         "created_at": created_at,
         "workflow": meta.get("workflow")
         or workflow_result.get("workflow")
@@ -1527,9 +1733,9 @@ def _load_run_bundle(output_dir: Path, *, scope: str) -> Optional[Dict[str, Any]
     if "results_json" in artifacts:
         results_payload = _read_json(Path(artifacts["results_json"]))
 
-    is_agentic = meta.get("mode") == "agentic" or "audit_log" in artifacts
+    is_mcp = meta.get("mode") == "mcp" or "audit_log" in artifacts
 
-    if is_agentic and "requirements" in artifacts and "compliance_decisions" in artifacts:
+    if is_mcp and "requirements" in artifacts and "compliance_decisions" in artifacts:
         requirements = _build_agentic_requirement_rows(
             Path(artifacts["compliance_decisions"]),
             Path(artifacts["requirements"]),
@@ -1543,7 +1749,7 @@ def _load_run_bundle(output_dir: Path, *, scope: str) -> Optional[Dict[str, Any]
     summary_cards = _build_summary_cards_from_rows(requirements, metrics_payload)
 
     audit_log = []
-    if is_agentic and "audit_log" in artifacts:
+    if is_mcp and "audit_log" in artifacts:
         audit_log = _read_json(Path(artifacts["audit_log"]))
         meta["agentic_metadata"] = _build_agentic_metadata(audit_log)
         timeline = _build_agentic_timeline(audit_log, run_scope=scope, run_title=title)
@@ -1566,8 +1772,8 @@ def _load_run_bundle(output_dir: Path, *, scope: str) -> Optional[Dict[str, Any]
         "url": f"/runs/{scope}",
         "title": title,
         "run_id": run_id,
-        "mode": meta.get("mode", "linear"),
-        "mode_label": _humanize(meta.get("mode", "linear")),
+        "mode": meta.get("mode", "mcp"),
+        "mode_label": _humanize(meta.get("mode", "mcp")),
         "created_at": meta.get("created_at", ""),
         "created_label": _format_timestamp(meta.get("created_at", "")),
         "output_dir": str(output_dir),
@@ -1606,7 +1812,7 @@ def _all_run_bundles() -> List[Dict[str, Any]]:
     bundles = []
     for item in _run_directories():
         bundle = _load_run_bundle(Path(item["path"]), scope=item["scope"])
-        if bundle:
+        if bundle and not _is_hidden_run(bundle.get("scope", ""), bundle.get("run_id", ""), bundle.get("title", "")):
             bundles.append(bundle)
     bundles.sort(key=lambda entry: entry.get("created_at", ""), reverse=True)
     return bundles
@@ -1632,14 +1838,18 @@ def build_run_summaries(runs: Optional[List[Dict[str, Any]]] = None) -> List[Dic
     bundles = runs if runs is not None else _all_run_bundles()
     summaries = []
     for bundle in bundles:
+        if _is_hidden_run(bundle.get("scope", ""), bundle.get("run_id", ""), bundle.get("title", "")):
+            continue
         confidence = bundle.get("confidence_summary", {}) or {}
         output_dir = Path(bundle.get("output_dir", ""))
         can_archive = _is_archivable_run_dir(output_dir) if output_dir.exists() else False
+        readable_title = _readable_run_title(bundle.get("run_id", ""), bundle.get("title", ""))
         summaries.append(
             {
                 "scope": bundle["scope"],
                 "run_id": bundle["run_id"],
                 "title": bundle["title"],
+                "readable_title": readable_title,
                 "requirements": bundle.get("requirements_count", 0),
                 "decisions": bundle.get("decisions_count", 0),
                 "steps": bundle.get("steps_count", 0),
@@ -1654,6 +1864,8 @@ def build_run_summaries(runs: Optional[List[Dict[str, Any]]] = None) -> List[Dic
                 "confidence_min": confidence.get("min"),
                 "confidence_max": confidence.get("max"),
                 "confidence_mean": confidence.get("mean"),
+                "confidence_min_label": f"{confidence.get('min'):.2f}" if confidence.get("min") is not None else "n/a",
+                "confidence_max_label": f"{confidence.get('max'):.2f}" if confidence.get("max") is not None else "n/a",
                 "date_label": bundle.get("created_label"),
                 "view_url": f"/runs/{bundle['scope']}",
                 "workflow_url": f"/runs/{bundle['scope']}/workflow",
@@ -1688,38 +1900,51 @@ def _documents_inventory(runs: Optional[List[Dict[str, Any]]] = None) -> Dict[st
                 }
             )
 
-    scenario_documents: List[Dict[str, Any]] = []
-    uploaded_documents: List[Dict[str, Any]] = []
+    library_root = BASE_DIR / "data" / "library"
+    category_docs: Dict[str, List[Dict[str, Any]]] = {}
 
-    for output_subdir, scenario in _scenario_catalog().items():
-        for document in scenario.get("documents", []):
-            path = Path(document["path"])
-            if not path.exists() or not path.is_file():
-                continue
+    if library_root.exists():
+        files = sorted(
+            (path for path in library_root.rglob("*") if path.is_file()),
+            key=lambda p: p.name.lower(),
+        )
+        for path in files:
             abs_path = str(path.resolve())
+            rel_path = path.resolve().relative_to(library_root.resolve()).as_posix()
+            category = rel_path.split("/", 1)[0]
             stat = path.stat()
-            scenario_documents.append(
-                {
-                    "path": abs_path,
-                    "name": path.name,
-                    "scenario": output_subdir,
-                    "role": document.get("role", "unknown"),
-                    "role_label": _role_label(document.get("role", "unknown")),
-                    "type": path.suffix.replace(".", "").upper() or "FILE",
-                    "size_bytes": stat.st_size,
-                    "size_label": _size_label(stat.st_size),
-                    "preview": _document_preview(abs_path, max_chars=9000),
-                    "usage": usage_by_path.get(abs_path, []),
-                    "search_text": " ".join(
-                        [
-                            path.name,
-                            output_subdir,
-                            document.get("role", "unknown"),
-                            str(path),
-                        ]
-                    ).lower(),
-                }
-            )
+            doc = {
+                "path": abs_path,
+                "name": path.name,
+                "relative_path": rel_path,
+                "folder_label": _humanize(category),
+                "role_label": "Library document",
+                "type": path.suffix.replace(".", "").upper() or "FILE",
+                "size_bytes": stat.st_size,
+                "size_label": _size_label(stat.st_size),
+                "preview": _document_preview(abs_path, max_chars=9000),
+                "usage": usage_by_path.get(abs_path, []),
+                "search_text": " ".join([path.name, rel_path, category]).lower(),
+            }
+            category_docs.setdefault(category, []).append(doc)
+
+    library_categories = []
+    for category in sorted(category_docs):
+        docs = category_docs[category]
+        library_categories.append(
+            {
+                "key": category,
+                "label": _humanize(category),
+                "description": CATEGORY_DESCRIPTIONS.get(
+                    category,
+                    "Supporting documents available to the agent team during review and drafting.",
+                ),
+                "documents": docs,
+                "count": len(docs),
+            }
+        )
+
+    uploaded_documents: List[Dict[str, Any]] = []
 
     for upload_root in [UPLOADS_DIR, LEGACY_UPLOADS_DIR]:
         if not upload_root.exists():
@@ -1727,11 +1952,16 @@ def _documents_inventory(runs: Optional[List[Dict[str, Any]]] = None) -> Dict[st
         for path in sorted((p for p in upload_root.rglob("*") if p.is_file()), key=lambda p: p.stat().st_mtime, reverse=True):
             abs_path = str(path.resolve())
             stat = path.stat()
+            try:
+                relative_path = path.resolve().relative_to(BASE_DIR.resolve()).as_posix()
+            except ValueError:
+                relative_path = path.name
             uploaded_documents.append(
                 {
                     "path": abs_path,
                     "name": path.name,
-                    "scenario": "uploaded",
+                    "scenario": "Workspace uploads",
+                    "relative_path": relative_path,
                     "role": "uploaded_input",
                     "role_label": "Uploaded input",
                     "type": path.suffix.replace(".", "").upper() or "FILE",
@@ -1742,17 +1972,19 @@ def _documents_inventory(runs: Optional[List[Dict[str, Any]]] = None) -> Dict[st
                     "search_text": " ".join(
                         [
                             path.name,
-                            str(path.parent),
+                            relative_path,
                             "uploaded input",
                         ]
                     ).lower(),
                 }
             )
 
+    library_documents = [doc for category in library_categories for doc in category["documents"]]
     return {
-        "scenario_documents": scenario_documents,
+        "library_categories": library_categories,
+        "library_documents": library_documents,
         "uploaded_documents": uploaded_documents,
-        "all_documents": scenario_documents + uploaded_documents,
+        "all_documents": library_documents + uploaded_documents,
     }
 
 
@@ -1774,8 +2006,8 @@ def _activity_event_from_timeline(item: Dict[str, Any]) -> Dict[str, Any]:
         category = "system"
         category_label = "System Events"
 
-    source = item.get("sender") or item.get("agent") or "system"
-    target = item.get("recipient") or ""
+    source = _friendly_agent_name(str(item.get("sender") or item.get("agent") or "system"))
+    target = _friendly_agent_name(str(item.get("recipient") or "")) if item.get("recipient") else ""
     payload_json = item.get("payload_json") or item.get("output_json") or "{}"
     return {
         "timestamp": item.get("timestamp", ""),
@@ -1795,8 +2027,8 @@ def _activity_event_from_timeline(item: Dict[str, Any]) -> Dict[str, Any]:
                 str(item.get("title", "")),
                 str(item.get("comment", "")),
                 str(item.get("run_title", "")),
-                str(source),
-                str(target),
+                source,
+                target,
                 str(item.get("msg_type", "")),
                 str(item.get("action", "")),
             ]
@@ -1824,7 +2056,7 @@ def _planning_events_for_bundle(bundle: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "category_label": "Planning",
                 "run_scope": bundle.get("scope"),
                 "run_title": bundle.get("title"),
-                "source": "orchestrator",
+                "source": "Orchestrator",
                 "target": _step_label(step.get("action", "")).lower(),
                 "summary": f"Step {step.get('step')}: {_step_label(step.get('action', ''))}",
                 "details": f"{step.get('reasoning', '')}{confidence_text}",
@@ -1853,10 +2085,10 @@ def _file_events_for_bundle(bundle: Dict[str, Any]) -> List[Dict[str, Any]]:
             "run_title": bundle.get("title"),
             "source": "system",
             "target": bundle.get("run_id"),
-            "summary": f"Run started: {bundle.get('run_id')}",
-            "details": f"Workflow {bundle.get('meta', {}).get('workflow', 'compliance_review')} initialized.",
+            "summary": f"Review started: {_readable_run_title(bundle.get('run_id', ''), bundle.get('title', ''))}",
+            "details": f"Workflow {str(bundle.get('meta', {}).get('workflow', 'compliance_review')).replace('_', ' ')} initialized.",
             "payload_json": json.dumps({"run_id": bundle.get("run_id"), "output_dir": bundle.get("output_dir")}, indent=2),
-            "search_text": f"run started {bundle.get('run_id')} {bundle.get('title')}".lower(),
+            "search_text": f"review started {bundle.get('run_id')} {bundle.get('title')}".lower(),
         }
     ]
     for artifact_name, path_str in bundle.get("artifacts", {}).items():
@@ -1876,12 +2108,104 @@ def _file_events_for_bundle(bundle: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "source": "filesystem",
                 "target": artifact_name,
                 "summary": f"Artifact written: {path.name}",
-                "details": str(path),
-                "payload_json": json.dumps({"artifact": artifact_name, "path": str(path)}, indent=2),
-                "search_text": f"artifact {artifact_name} {path} {bundle.get('title')}".lower(),
+                "details": f"Generated file: {path.name}",
+                "payload_json": json.dumps({"artifact": artifact_name, "file": path.name}, indent=2),
+                "search_text": f"artifact {artifact_name} {path.name} {bundle.get('title')}".lower(),
             }
         )
     return events
+
+
+def summarize_activity(audit_log: List[Dict[str, Any]], planning_trace: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Convert raw audit events into human-readable activity summaries."""
+    summaries: List[Dict[str, Any]] = []
+    spawn_agents: List[str] = []
+    goals_sent: List[Dict[str, str]] = []
+    results_received: List[str] = []
+    skills_used: List[str] = []
+
+    for entry in audit_log:
+        msg_type = entry.get("type", "")
+        payload = entry.get("payload", {}) or {}
+
+        if msg_type == "spawn":
+            agent_id = payload.get("agent_id") or entry.get("recipient", "")
+            if agent_id:
+                spawn_agents.append(_friendly_agent_name(str(agent_id)))
+        elif msg_type == "goal":
+            goals_sent.append(
+                {
+                    "from": _friendly_agent_name(str(entry.get("sender", ""))),
+                    "to": _friendly_agent_name(str(entry.get("recipient", ""))),
+                    "task": _summarize_text(str(payload.get("task", payload.get("goal", ""))), max_chars=100),
+                }
+            )
+        elif msg_type == "result":
+            sender = entry.get("sender", "")
+            if sender:
+                results_received.append(_friendly_agent_name(str(sender)))
+        elif msg_type == "tool_call":
+            skill = payload.get("tool", payload.get("skill", "unknown"))
+            if skill:
+                skills_used.append(str(skill))
+
+    if spawn_agents:
+        unique_agents = sorted(set(spawn_agents))
+        summaries.append(
+            {
+                "type": "lifecycle",
+                "title": f"{len(unique_agents)} agents activated",
+                "detail": ", ".join(unique_agents),
+                "icon": "team",
+            }
+        )
+
+    if goals_sent:
+        targets = sorted({goal["to"] for goal in goals_sent if goal["to"]})
+        summaries.append(
+            {
+                "type": "delegation",
+                "title": f"{len(goals_sent)} tasks delegated",
+                "detail": "Orchestrator assigned work to " + ", ".join(targets),
+                "icon": "assign",
+            }
+        )
+
+    if results_received:
+        summaries.append(
+            {
+                "type": "result",
+                "title": f"{len(results_received)} results returned",
+                "detail": "Results came back from " + ", ".join(sorted(set(results_received))),
+                "icon": "result",
+            }
+        )
+
+    if skills_used:
+        unique_skills = sorted(set(skills_used))
+        summaries.append(
+            {
+                "type": "skill",
+                "title": f"{len(skills_used)} skill invocations ({len(unique_skills)} unique)",
+                "detail": "Skills used: " + ", ".join(unique_skills[:10]),
+                "icon": "tool",
+            }
+        )
+
+    for step in planning_trace or []:
+        action = str(step.get("action", "")).replace("dispatch_", "").replace("_", " ").title()
+        summaries.append(
+            {
+                "type": "planning",
+                "title": f"Step {step.get('step')}: {action}",
+                "detail": step.get("reasoning", ""),
+                "mode": step.get("planner_mode", ""),
+                "confidence": step.get("confidence_after", {}) or {},
+                "icon": "brain",
+            }
+        )
+
+    return summaries
 
 
 def _activity_feed(runs: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
@@ -1959,6 +2283,17 @@ def _activity_stats(feed: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def get_notification_context(contracts: List[Dict[str, Any]], run_summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    notifications = generate_notifications(contracts, run_summaries)
+    critical_notifications = [item for item in notifications if item.get("severity") == "critical"]
+    return {
+        "notifications": notifications,
+        "notification_count": len(notifications),
+        "critical_count": len(critical_notifications),
+        "critical_notifications": critical_notifications,
+    }
+
+
 def _base_context(
     request: Request,
     *,
@@ -1968,6 +2303,11 @@ def _base_context(
     active_nav: str,
 ) -> Dict[str, Any]:
     runs = _all_run_bundles()
+    run_summaries = build_run_summaries(runs)
+    from compliance_agent.contracts.tracker import enrich_with_run_data, get_all_contracts
+
+    contracts = enrich_with_run_data(get_all_contracts(), run_summaries)
+    notification_context = get_notification_context(contracts, run_summaries)
     return {
         "request": request,
         "page_title": page_title,
@@ -1979,7 +2319,8 @@ def _base_context(
         "system_snapshot": _system_snapshot(runs),
         "recent_runs": runs[:6],
         "latest_run": runs[0] if runs else None,
-        "run_summaries": build_run_summaries(runs),
+        "run_summaries": run_summaries,
+        **notification_context,
     }
 
 
@@ -2056,7 +2397,7 @@ def _document_payloads_from_linear_inputs(
     return documents
 
 
-def _execute_agentic_review(
+def _execute_mcp_review(
     *,
     title: str,
     documents: List[Any],
@@ -2065,7 +2406,7 @@ def _execute_agentic_review(
     workflow_type: str = "compliance_review",
     ground_truth_path: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Execute a compliance review through the full agentic MCP pipeline."""
+    """Execute a compliance review through the MCP pipeline."""
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_documents = _normalize_agentic_documents(documents)
     goal = {
@@ -2076,23 +2417,23 @@ def _execute_agentic_review(
         "run_id": run_id,
     }
 
-    result = asyncio.run(agentic_run(goal))
-    agentic_run_dir = Path(result.get("run_dir", str(output_dir)))
+    result = asyncio.run(mcp_run(goal))
+    run_dir = Path(result.get("run_dir", str(output_dir)))
     audit_log = result.get("audit_log", [])
 
     evaluation_bundle = None
-    results_json = agentic_run_dir / "compliance_results.json"
+    results_json = run_dir / "compliance_results.json"
     if ground_truth_path and results_json.exists():
         evaluation_bundle = evaluate_scenario_run(
             ground_truth_path=str(ground_truth_path),
             system_output_path=str(results_json),
-            output_dir=str(agentic_run_dir),
+            output_dir=str(run_dir),
         )
 
     meta = {
         "title": title,
         "run_id": run_id,
-        "mode": "agentic",
+        "mode": "mcp",
         "created_at": datetime.now().isoformat(),
         "documents": normalized_documents,
         "ground_truth_path": str(ground_truth_path) if ground_truth_path else None,
@@ -2104,63 +2445,7 @@ def _execute_agentic_review(
         "evaluation": evaluation_bundle,
         "agentic_metadata": _build_agentic_metadata(audit_log),
     }
-    _write_json(_meta_path(agentic_run_dir), meta)
-    return meta
-
-
-def _execute_linear_review(
-    *,
-    title: str,
-    policy_path: str,
-    response_path: str,
-    output_dir: Path,
-    run_id: str,
-    workflow_type: str = "compliance_review",
-    glossary_path: Optional[str] = None,
-    context_paths: Optional[List[str]] = None,
-    ground_truth_path: Optional[str] = None,
-) -> Dict[str, Any]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    agent = ComplianceAgent()
-    results = agent.process(
-        policy_path=policy_path,
-        response_path=response_path,
-        glossary_path=glossary_path,
-        context_paths=context_paths or [],
-        run_id=run_id,
-    )
-
-    csv_path = output_dir / f"{run_id}_matrix.csv"
-    json_path = output_dir / f"{run_id}_results.json"
-    report_path = output_dir / f"{run_id}_report.md"
-    agent.export_matrix(str(csv_path))
-    agent.export_json(str(json_path))
-    agent.export_report(str(report_path))
-
-    evaluation_bundle = None
-    if ground_truth_path:
-        evaluation_bundle = evaluate_scenario_run(
-            ground_truth_path=str(ground_truth_path),
-            system_output_path=str(json_path),
-            output_dir=str(output_dir),
-        )
-
-    meta = {
-        "title": title,
-        "run_id": run_id,
-        "mode": "linear",
-        "workflow": workflow_type,
-        "created_at": datetime.now().isoformat(),
-        "source_document": policy_path,
-        "response_document": response_path,
-        "glossary_document": glossary_path,
-        "context_documents": context_paths or [],
-        "ground_truth_path": str(ground_truth_path) if ground_truth_path else None,
-        "review_queue": results.get("review_queue", []),
-        "artifacts": _collect_artifacts(output_dir, run_id),
-        "evaluation": evaluation_bundle,
-    }
-    _write_json(_meta_path(output_dir), meta)
+    _write_json(_meta_path(run_dir), meta)
     return meta
 
 
@@ -2177,28 +2462,15 @@ def _execute_review(
     glossary_path: Optional[str] = None,
     context_paths: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    if config.EXECUTION_MODE == "agentic":
-        agentic_documents = documents or _document_payloads_from_linear_inputs(
-            policy_path=policy_path or "",
-            response_path=response_path or "",
-            glossary_path=glossary_path,
-            context_paths=context_paths,
-        )
-        return _execute_agentic_review(
-            title=title,
-            documents=agentic_documents,
-            output_dir=output_dir,
-            run_id=run_id,
-            workflow_type=workflow_type,
-            ground_truth_path=ground_truth_path,
-        )
-
-    return _execute_linear_review(
-        title=title,
+    mcp_documents = documents or _document_payloads_from_linear_inputs(
         policy_path=policy_path or "",
         response_path=response_path or "",
         glossary_path=glossary_path,
         context_paths=context_paths,
+    )
+    return _execute_mcp_review(
+        title=title,
+        documents=mcp_documents,
         output_dir=output_dir,
         run_id=run_id,
         workflow_type=workflow_type,
@@ -2673,18 +2945,39 @@ def _latest_agentic_bundle() -> Optional[Dict[str, Any]]:
 def _agent_registry_data() -> Dict[str, Any]:
     bundle = _latest_agentic_bundle()
     if not bundle:
-        return {"agents": [], "matrix": [], "matrix_agents": [], "skills": [], "latest_run": None}
+        base_agents = _agentic_capabilities()["agent_ids"]
+        declared_skill_map = _agent_skill_map_from_source()
+        agents = []
+        for agent_id in base_agents:
+            profile = AGENT_DESCRIPTIONS.get(agent_id, {})
+            agents.append(
+                {
+                    "agent_id": agent_id,
+                    "name": profile.get("title", _humanize(agent_id)),
+                    "role": profile.get("role", "Specialized role"),
+                    "description": profile.get("description", "No description available."),
+                    "analogy": profile.get("analogy", ""),
+                    "skills": sorted(declared_skill_map.get(agent_id, [])),
+                    "status": "registered",
+                    "messages_sent": 0,
+                    "messages_received": 0,
+                    "message_count": 0,
+                }
+            )
+        return {
+            "agents": agents,
+            "matrix": [],
+            "matrix_agents": base_agents,
+            "skills": [],
+            "skill_groups": [],
+            "latest_run": None,
+        }
 
     audit_log = _read_json(Path(bundle["artifacts"]["audit_log"]))
     base_agents = _agentic_capabilities()["agent_ids"]
     declared_skill_map = _agent_skill_map_from_source()
     run_skill_map: Dict[str, set[str]] = {agent: set(declared_skill_map.get(agent, [])) for agent in base_agents}
 
-    spawn_payload = {
-        entry.get("recipient"): entry.get("payload", {})
-        for entry in audit_log
-        if entry.get("type") == "spawn" and entry.get("recipient") in base_agents
-    }
     active_agents = {
         entry.get("sender")
         for entry in audit_log
@@ -2706,13 +2999,14 @@ def _agent_registry_data() -> Dict[str, Any]:
     for agent_id in base_agents:
         sent = sum(1 for entry in audit_log if entry.get("sender") == agent_id)
         received = sum(1 for entry in audit_log if entry.get("recipient") == agent_id)
-        payload = spawn_payload.get(agent_id, {})
+        profile = AGENT_DESCRIPTIONS.get(agent_id, {})
         agents.append(
             {
                 "agent_id": agent_id,
-                "name": _humanize(agent_id),
-                "role": payload.get("role", agent_id.replace("_agent", "")),
-                "description": payload.get("description", "No description available."),
+                "name": profile.get("title", _humanize(agent_id)),
+                "role": profile.get("role", "Specialized role"),
+                "description": profile.get("description", "No description available."),
+                "analogy": profile.get("analogy", ""),
                 "skills": sorted(run_skill_map.get(agent_id, set())),
                 "status": "active" if agent_id in active_agents else "registered",
                 "messages_sent": sent,
@@ -2767,11 +3061,26 @@ def _agent_registry_data() -> Dict[str, Any]:
             }
         )
 
+    available_skills = set(registry.list_all())
+    skill_groups = []
+    for group in SKILL_GROUP_DEFINITIONS:
+        grouped = [skill for skill in group["skills"] if skill in available_skills]
+        if not grouped:
+            continue
+        skill_groups.append(
+            {
+                "label": group["label"],
+                "skills": grouped,
+                "used_by": group["used_by"],
+            }
+        )
+
     return {
         "agents": agents,
         "matrix": matrix,
         "matrix_agents": matrix_agents,
         "skills": skills_table,
+        "skill_groups": skill_groups,
         "latest_run": bundle,
     }
 
@@ -2779,6 +3088,26 @@ def _agent_registry_data() -> Dict[str, Any]:
 @app.get("/health")
 def healthcheck() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/api/chat")
+async def chat_endpoint(request: Request) -> Dict[str, str]:
+    """Handle chat assistant queries."""
+    from compliance_agent.agents.chat_agent import answer_question
+    from compliance_agent.contracts.tracker import enrich_with_run_data, get_all_contracts
+
+    body = await request.json()
+    question = body.get("question", "")
+    if not str(question).strip():
+        return {"answer": "Please ask a question about your contracts or compliance reviews."}
+
+    contracts = get_all_contracts()
+    run_summaries = build_run_summaries()
+    contracts = enrich_with_run_data(contracts, run_summaries)
+    notifications = generate_notifications(contracts, run_summaries)
+
+    answer = await answer_question(str(question), contracts, run_summaries, notifications)
+    return {"answer": answer}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -2792,10 +3121,10 @@ def dashboard_home(request: Request) -> HTMLResponse:
 
     context = _base_context(
         request,
-        page_title="Contract Operations Dashboard",
-        hero_title="Contract operations",
-        hero_subtitle="AI-powered document operations for IT services contracting.",
-        active_nav="overview",
+        page_title="Contracts",
+        hero_title="Contracts",
+        hero_subtitle="Track each contract from forecast through delivery and open AI analysis where available.",
+        active_nav="contracts",
     )
 
     contracts = get_all_contracts()
@@ -2807,6 +3136,7 @@ def dashboard_home(request: Request) -> HTMLResponse:
             "contracts": contracts,
             "pipeline": pipeline,
             "stages": STAGES,
+            "stage_explanations": STAGE_EXPLANATIONS,
         }
     )
     return templates.TemplateResponse("index.html", context)
@@ -2816,14 +3146,19 @@ def dashboard_home(request: Request) -> HTMLResponse:
 def documents_page(request: Request) -> HTMLResponse:
     context = _base_context(
         request,
-        page_title="Documents",
-        hero_title="Documents",
-        hero_subtitle="Inventory of all scenario and uploaded documents, with role metadata and run usage.",
-        active_nav="documents",
+        page_title="Document Library",
+        hero_title="Document Library",
+        hero_subtitle="Company documents organized for compliance review and proposal drafting support.",
+        active_nav="library",
     )
     inventory = _documents_inventory(_all_run_bundles())
     context["inventory"] = inventory
     return templates.TemplateResponse("documents.html", context)
+
+
+@app.get("/library", response_class=HTMLResponse)
+def library_page(request: Request) -> HTMLResponse:
+    return documents_page(request)
 
 
 @app.post("/documents/upload")
@@ -2833,17 +3168,17 @@ def upload_documents(files: List[UploadFile] = File(...)) -> RedirectResponse:
     for upload in files:
         if upload and upload.filename:
             _save_upload(upload, upload_dir)
-    return RedirectResponse(url="/documents", status_code=303)
+    return RedirectResponse(url="/library", status_code=303)
 
 
 @app.get("/runs", response_class=HTMLResponse)
 def runs_page(request: Request) -> HTMLResponse:
     context = _base_context(
         request,
-        page_title="Compliance Runs",
-        hero_title="Compliance Runs",
-        hero_subtitle="Completed run inventory with requirements, decisions, planning mode, and artifact access.",
-        active_nav="runs",
+        page_title="Reviews & Analysis",
+        hero_title="Reviews & Analysis",
+        hero_subtitle="Each review below is a complete AI compliance analysis with confidence and action guidance.",
+        active_nav="reviews",
     )
     context["run_rows"] = build_run_summaries(_all_run_bundles())
     return templates.TemplateResponse("runs.html", context)
@@ -2854,19 +3189,14 @@ def compliance_runs_page(request: Request) -> HTMLResponse:
     return runs_page(request)
 
 
+@app.get("/reviews", response_class=HTMLResponse)
+def reviews_page(request: Request) -> HTMLResponse:
+    return runs_page(request)
+
+
 @app.get("/files", response_class=HTMLResponse)
 def files_page(request: Request) -> HTMLResponse:
-    context = _base_context(
-        request,
-        page_title="File Manager",
-        hero_title="File Manager",
-        hero_subtitle="Browse the workspace directory tree, preview artifacts, download files, and clean up run outputs.",
-        active_nav="files",
-    )
-    workspace_tree = _workspace_tree()
-    context["run_downloads"] = workspace_tree["run_downloads"]
-    context["file_trees"] = build_file_tree(["output", "data", "examples/scenarios"])
-    return templates.TemplateResponse("files.html", context)
+    return documents_page(request)
 
 
 @app.get("/files/preview")
@@ -2912,17 +3242,40 @@ def file_preview(path: str) -> JSONResponse:
 
 @app.get("/activity", response_class=HTMLResponse)
 def activity_page(request: Request) -> HTMLResponse:
+    bundles = _all_run_bundles()
+    run_rows = build_run_summaries(bundles)
+    selected_scope = request.query_params.get("run")
+    if not selected_scope and run_rows:
+        selected_scope = run_rows[0]["scope"]
+
+    selected_bundle = next((bundle for bundle in bundles if bundle.get("scope") == selected_scope), None)
+    selected_run_activity: List[Dict[str, Any]] = []
+    raw_activity_events: List[Dict[str, Any]] = []
+    selected_run_title = None
+    if selected_bundle:
+        selected_run_title = _readable_run_title(selected_bundle.get("run_id", ""), selected_bundle.get("title", ""))
+        audit_path = selected_bundle.get("artifacts", {}).get("audit_log")
+        audit_log = _read_json(Path(audit_path)) if audit_path else []
+        if not isinstance(audit_log, list):
+            audit_log = []
+        selected_run_activity = summarize_activity(audit_log, selected_bundle.get("planning_trace", []))
+        raw_activity_events = _activity_feed([selected_bundle])
+
     context = _base_context(
         request,
-        page_title="Activity Log",
-        hero_title="Activity Log",
-        hero_subtitle="Unified timeline of planning decisions, agent communication, tool calls, and file/system events.",
+        page_title="System Activity",
+        hero_title="System Activity",
+        hero_subtitle="A plain-language record of what the AI agent team did across compliance reviews.",
         active_nav="activity",
     )
-    feed = _activity_feed()
+    feed = _activity_feed(bundles)
     context["activity_feed"] = feed
     context["activity_stats"] = _activity_stats(feed)
-    context["run_options"] = [{"scope": bundle["scope"], "label": bundle["run_id"]} for bundle in _all_run_bundles()]
+    context["runs"] = run_rows
+    context["selected_run"] = selected_scope
+    context["selected_run_title"] = selected_run_title
+    context["selected_run_activity"] = selected_run_activity
+    context["raw_activity_events"] = raw_activity_events
     return templates.TemplateResponse("activity.html", context)
 
 
@@ -2957,9 +3310,9 @@ def activity_detail_page(scope: str, event_index: int, request: Request) -> HTML
 def agents_page(request: Request) -> HTMLResponse:
     context = _base_context(
         request,
-        page_title="Agent Registry",
-        hero_title="Agent Registry",
-        hero_subtitle="Agent architecture, communication matrix, and skill registry from the latest run.",
+        page_title="Agent Team",
+        hero_title="Agent Team",
+        hero_subtitle="Meet the specialized AI agents and how they coordinate during document analysis.",
         active_nav="agents",
     )
     context["registry"] = _agent_registry_data()
@@ -2977,7 +3330,7 @@ def contract_detail_page(request: Request, contract_id: str) -> HTMLResponse:
             page_title="Not Found",
             hero_title="Error",
             hero_subtitle="Requested contract could not be located.",
-            active_nav="overview",
+            active_nav="contracts",
         )
         context["message"] = "Contract not found"
         return templates.TemplateResponse("error.html", context, status_code=404)
@@ -3016,8 +3369,8 @@ def contract_detail_page(request: Request, contract_id: str) -> HTMLResponse:
         request,
         page_title=f"{contract['id']} — {contract['title']}",
         hero_title=contract["title"],
-        hero_subtitle="Contract case record with agent workflow and analysis outcomes.",
-        active_nav="overview",
+        hero_subtitle="Contract profile with stage history, status, and associated AI analysis.",
+        active_nav="contracts",
     )
     context.update(
         {
@@ -3062,8 +3415,8 @@ def run_detail_page(scope: str, request: Request) -> HTMLResponse:
         request,
         page_title=bundle["title"],
         hero_title=bundle["title"],
-        hero_subtitle="Run metadata, compliance decision ledger, planning trace, evaluation metrics, and artifact previews.",
-        active_nav="runs",
+        hero_subtitle="A narrative view of what the AI team reviewed, what it found, and what needs attention.",
+        active_nav="reviews",
     )
     review_flags_file = run_dir / "review_flags.json"
     review_flags = _read_json(review_flags_file) if review_flags_file.exists() else []
@@ -3084,6 +3437,19 @@ def run_detail_page(scope: str, request: Request) -> HTMLResponse:
     context["report_download_url"] = "/downloads/{}/compliance_report".format(bundle["scope"]) if "compliance_report" in bundle.get("artifacts", {}) else None
     context["matrix_download_url"] = "/downloads/{}/compliance_matrix".format(bundle["scope"]) if "compliance_matrix" in bundle.get("artifacts", {}) else None
     context["download_all_url"] = f"/runs/{bundle['scope']}/download-all"
+    attention_items = [
+        decision
+        for decision in bundle["requirements"]
+        if decision.get("label") in {"partial", "not_addressed", "not_compliant"}
+    ]
+    compliant_items = [decision for decision in bundle["requirements"] if decision.get("label") == "compliant"]
+    context["attention_items"] = attention_items
+    context["compliant_items"] = compliant_items
+    context["attention_count"] = len(attention_items)
+    context["compliant_count"] = len(compliant_items)
+    context["partial_count"] = bundle.get("summary_cards", {}).get("partial", 0)
+    context["not_addressed_count"] = bundle.get("summary_cards", {}).get("not_addressed", 0) + bundle.get("summary_cards", {}).get("not_compliant", 0)
+    context["avg_confidence"] = bundle.get("summary_cards", {}).get("avg_confidence", 0.0)
     return templates.TemplateResponse("run_detail.html", context)
 
 
@@ -3103,8 +3469,8 @@ def run_workflow_page(scope: str, request: Request) -> HTMLResponse:
         request,
         page_title=f"Agent Workflow — {bundle['title']}",
         hero_title="Agent Workflow",
-        hero_subtitle="Watch how the agents coordinated: who delegated to whom, which skills were invoked, and how information flowed through the MCP bus.",
-        active_nav="runs",
+        hero_subtitle="See how the orchestrator delegated work and how agents coordinated this review.",
+        active_nav="reviews",
     )
     context["run"] = bundle
     context["workflow_data"] = workflow_data
@@ -3122,7 +3488,7 @@ def run_live_page(scope: str, request: Request) -> HTMLResponse:
         page_title=f"Run Replay — {bundle['title']}",
         hero_title=f"Run Replay: {bundle['run_id']}",
         hero_subtitle="Watch the digital team coordinate in sequence: planning decisions, delegation, skill usage, and results.",
-        active_nav="runs",
+        active_nav="reviews",
     )
     context["run"] = bundle
     context["scope"] = scope
@@ -3315,7 +3681,7 @@ def workspace_file_detail_page(root_key: str, relative_path: str, request: Reque
         page_title=file_path.name,
         hero_title=file_path.name,
         hero_subtitle=str(file_path.resolve().relative_to(BASE_DIR.resolve())),
-        active_nav="files",
+        active_nav="library",
     )
     context["workspace_file"] = {
         "name": file_path.name,
@@ -3366,7 +3732,7 @@ def file_detail_page(root_key: str, relative_path: str, request: Request) -> HTM
         page_title=entry["title"],
         hero_title=entry["title"],
         hero_subtitle=f"{entry['root_label']} · {entry['path_label']}",
-        active_nav="files",
+        active_nav="library",
     )
     context["file_entry"] = entry
     return templates.TemplateResponse("file_detail.html", context)
@@ -3378,17 +3744,56 @@ def download_managed_file(root_key: str, relative_path: str):
     return FileResponse(file_path, filename=file_path.name)
 
 
-@app.get("/run-upload", response_class=HTMLResponse)
-def run_upload_page(request: Request) -> HTMLResponse:
+def _run_upload_context(request: Request, *, error: Optional[str] = None) -> Dict[str, Any]:
+    from compliance_agent.contracts.library import CATEGORIES, get_library_tree, get_selectable_documents
+    from compliance_agent.contracts.tracker import get_all_contracts
+
+    documents = get_selectable_documents()
+    company_categories = tuple(category for category in CATEGORIES if category != "opportunities")
+    company_docs = [doc for doc in documents if doc["category"] in company_categories]
+    opportunity_docs = [doc for doc in documents if doc["category"] == "opportunities"]
+
+    default_selected: List[str] = []
+    for document in company_docs:
+        name = document["name"].lower()
+        if any(
+            term in name
+            for term in [
+                "capability_statement",
+                "past_perf",
+                "cpars",
+                "resume",
+                "certifications_matrix",
+                "fedramp",
+                "company_overview",
+            ]
+        ):
+            default_selected.append(document["path"])
+
     context = _base_context(
         request,
-        page_title="Upload & Run",
-        hero_title="Upload & Run",
-        hero_subtitle="Submit source, response, and optional context documents to launch a new compliance run.",
-        active_nav="runs",
+        page_title="New Compliance Run",
+        hero_title="Start Review",
+        hero_subtitle="Upload the government solicitation, optionally attach your draft response, and select company context from the library.",
+        active_nav="reviews",
     )
-    context["uploaded_documents"] = _documents_inventory(_all_run_bundles())["uploaded_documents"][:80]
-    return templates.TemplateResponse("run_upload.html", context)
+    context.update(
+        {
+            "company_docs": company_docs,
+            "opportunity_docs": opportunity_docs,
+            "default_selected": default_selected,
+            "contracts": get_all_contracts(),
+            "library_tree": get_library_tree(),
+        }
+    )
+    if error:
+        context["error"] = error
+    return context
+
+
+@app.get("/run-upload", response_class=HTMLResponse)
+async def run_upload_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("run_upload.html", _run_upload_context(request))
 
 
 @app.post("/run-demo")
@@ -3398,61 +3803,106 @@ def run_demo_case() -> RedirectResponse:
 
 
 @app.post("/run-upload")
-def run_uploaded_case(
-    case_name: str = Form("Uploaded case"),
-    run_name: Optional[str] = Form(None),
-    workflow_type: str = Form("compliance_review"),
-    policy: Optional[UploadFile] = File(None),
-    response: Optional[UploadFile] = File(None),
-    source_document: Optional[UploadFile] = File(None),
-    response_document: Optional[UploadFile] = File(None),
-    glossary: Optional[UploadFile] = File(None),
-    context: Optional[UploadFile] = File(None),
-    context_documents: Optional[List[UploadFile]] = File(None),
-) -> RedirectResponse:
-    title = (run_name or case_name or "").strip()
-    if not title:
-        title = f"{workflow_type.replace('_', ' ').title()} {_now_stamp()}"
+async def run_upload_submit(request: Request):
+    from compliance_agent.contracts.library import upload_to_library
 
-    normalized_workflow = "proposal_drafting" if "proposal" in workflow_type.lower() else "compliance_review"
-    run_id = f"{slugify(title)}-{_now_stamp()}-{uuid4().hex[:6]}"
-    upload_dir = UPLOADS_DIR / run_id
-    output_dir = CUSTOM_RUNS_DIR / run_id
+    form = await request.form()
+    run_name = str(form.get("run_name", "")).strip()
+    workflow_type = str(form.get("workflow_type", "compliance_review")).strip()
+    contract_id = str(form.get("contract_id", "")).strip()
 
-    source_upload = source_document or policy
-    response_upload = response_document or response
-    if not source_upload or not source_upload.filename:
-        raise HTTPException(status_code=400, detail="Source document is required.")
-    if not response_upload or not response_upload.filename:
-        raise HTTPException(status_code=400, detail="Response document is required.")
-
-    policy_path = _save_upload(source_upload, upload_dir)
-    response_path = _save_upload(response_upload, upload_dir)
-    glossary_path = _save_upload(glossary, upload_dir) if glossary and glossary.filename else None
+    source_path: Optional[str] = None
+    response_path: Optional[str] = None
     context_paths: List[str] = []
-    if context and context.filename:
-        context_paths.append(str(_save_upload(context, upload_dir)))
-    for item in context_documents or []:
-        if item and item.filename:
-            context_paths.append(str(_save_upload(item, upload_dir)))
 
-    documents = _document_payloads_from_linear_inputs(
-        policy_path=str(policy_path),
-        response_path=str(response_path),
-        glossary_path=str(glossary_path) if glossary_path else None,
-        context_paths=context_paths,
-    )
-    _execute_review(
-        title=title,
-        workflow_type=normalized_workflow,
-        documents=documents,
-        policy_path=str(policy_path),
-        response_path=str(response_path),
-        glossary_path=str(glossary_path) if glossary_path else None,
-        context_paths=context_paths,
-        output_dir=output_dir,
-        run_id=run_id,
-    )
+    source_file = form.get("source_file") or form.get("source_document") or form.get("policy")
+    source_library = str(form.get("source_library", "")).strip()
+
+    if source_file and hasattr(source_file, "read") and getattr(source_file, "filename", ""):
+        content = await source_file.read()
+        saved = upload_to_library(content, source_file.filename, "opportunities", run_name or "uploads")
+        source_path = str(saved)
+    elif source_library and Path(source_library).exists():
+        source_path = str(Path(source_library).resolve())
+
+    response_file = form.get("response_file") or form.get("response_document") or form.get("response")
+    response_library = str(form.get("response_library", "")).strip()
+
+    if response_file and hasattr(response_file, "read") and getattr(response_file, "filename", ""):
+        content = await response_file.read()
+        saved = upload_to_library(content, response_file.filename, "opportunities", run_name or "uploads")
+        response_path = str(saved)
+    elif response_library and Path(response_library).exists():
+        response_path = str(Path(response_library).resolve())
+
+    for selected in form.getlist("context_docs"):
+        selected_path = Path(str(selected))
+        if selected_path.exists():
+            resolved = str(selected_path.resolve())
+            context_paths.append(resolved)
+
+    if not source_path:
+        return templates.TemplateResponse(
+            "run_upload.html",
+            _run_upload_context(request, error="Please upload or select a solicitation document."),
+            status_code=400,
+        )
+
+    if not run_name:
+        run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    run_id = slugify(run_name)
+    output_dir = CUSTOM_RUNS_DIR / run_id
+    if output_dir.exists():
+        run_id = f"{run_id}-{uuid4().hex[:6]}"
+        output_dir = CUSTOM_RUNS_DIR / run_id
+
+    normalized_workflow = "proposal_drafting" if "draft" in workflow_type.lower() else "compliance_review"
+    documents: List[Dict[str, Any]] = [
+        {
+            "path": source_path,
+            "role": "solicitation_or_requirement_source",
+            "label": "Source document",
+        }
+    ]
+    if response_path:
+        documents.append(
+            {
+                "path": response_path,
+                "role": "response_or_proposal",
+                "label": "Response document",
+            }
+        )
+    for index, path in enumerate(context_paths, start=1):
+        documents.append(
+            {
+                "path": path,
+                "role": "prior_contract",
+                "label": f"Context document {index}",
+            }
+        )
+
+    title = run_name
+    if contract_id:
+        title = f"{run_name} ({contract_id})"
+
+    try:
+        await asyncio.to_thread(
+            _execute_review,
+            title=title,
+            workflow_type=normalized_workflow,
+            documents=documents,
+            output_dir=output_dir,
+            run_id=run_id,
+        )
+    except Exception:
+        logger.exception("Run failed for %s", run_id)
+        return templates.TemplateResponse(
+            "run_upload.html",
+            _run_upload_context(request, error="Run failed while executing the agent workflow. Check logs and try again."),
+            status_code=500,
+        )
+
     return RedirectResponse(url=f"/runs/{run_id}", status_code=303)
 
 

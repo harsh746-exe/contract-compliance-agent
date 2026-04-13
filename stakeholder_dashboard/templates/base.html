@@ -1,64 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ page_title }}</title>
-    <link rel="icon" href="data:," />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RELY — Contract Operations</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
-    <script defer src="/static/app.js?v=20260408c"></script>
-  </head>
-  <body>
+</head>
+<body>
     <div class="app-shell">
-      <header class="app-header">
-        <div class="header-copy">
-          <p class="eyebrow">Virtual document operations workspace</p>
-          <h1>{{ hero_title }}</h1>
-          {% if hero_subtitle %}
-            <p class="subcopy" style="margin-top: 10px; max-width: 72ch;">{{ hero_subtitle }}</p>
-          {% endif %}
+        <header class="app-header" style="position: relative;">
+            <div class="header-brand">
+                <strong class="brand-wordmark">RELY</strong>
+                <span>Contract operations</span>
+            </div>
+            <div class="header-right">
+                <a href="/" class="nav-pill {% if active_page == 'contracts' %}active{% endif %}">Contracts</a>
+                <a href="/reviews" class="nav-pill {% if active_page == 'reviews' %}active{% endif %}">Reviews</a>
+                <a href="/library" class="nav-pill {% if active_page == 'library' %}active{% endif %}">Library</a>
+                <a href="/activity" class="nav-pill {% if active_page == 'activity' %}active{% endif %}">Activity</a>
+                <a href="/agents" class="nav-pill {% if active_page == 'agents' %}active{% endif %}">Agents</a>
+                <div class="bell-trigger" onclick="toggleNotifications(event)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    {% if critical_count is defined and critical_count > 0 %}
+                    <span class="bell-count bell-count-critical">{{ critical_count }}</span>
+                    {% elif notification_count is defined and notification_count > 0 %}
+                    <span class="bell-count bell-count-normal">{{ notification_count }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if notifications is defined %}
+            <div class="notif-panel" id="notif-panel">
+                <div class="notif-header">
+                    <strong>Notifications</strong>
+                    <span style="font-size:10px;color:var(--muted)">{{ notifications | length }} alerts</span>
+                </div>
+                {% for n in notifications %}
+                <div class="notif-item">
+                    <div class="notif-dot notif-dot-{{ n.severity }}"></div>
+                    <div class="notif-body">
+                        <div class="notif-title">{{ n.title }}</div>
+                        <div class="notif-msg">{{ n.message }}</div>
+                        {% if n.action_url %}<a href="{{ n.action_url }}" class="notif-action">{{ n.action_label }}</a>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </header>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Chat (on every page) -->
+    <button class="chat-fab" onclick="toggleChat()" aria-label="Open assistant">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <div id="chat-window" class="chat-window">
+        <div class="chat-header">
+            <div><strong>Assistant</strong><small>Ask about contracts, reviews, or deadlines</small></div>
+            <button class="chat-close" onclick="toggleChat()">&times;</button>
         </div>
-        <nav class="top-nav">
-          <a href="/" class="nav-link {% if active_page == 'overview' %}is-active{% endif %}">Pipeline</a>
-          <a href="/compliance-runs" class="nav-link {% if active_page == 'runs' %}is-active{% endif %}">Agent runs</a>
-          <a href="/documents" class="nav-link {% if active_page == 'documents' %}is-active{% endif %}">Documents</a>
-          <a href="/files" class="nav-link {% if active_page == 'files' %}is-active{% endif %}">Files</a>
-          <a href="/activity" class="nav-link {% if active_page == 'activity' %}is-active{% endif %}">Activity</a>
-          <a href="/agents" class="nav-link {% if active_page == 'agents' %}is-active{% endif %}">Agents</a>
-        </nav>
-      </header>
-
-      <div class="workspace-grid">
-        <aside class="sidebar">
-          {% block sidebar %}
-            <div class="panel panel-quiet">
-              <p class="eyebrow">Workspace snapshot</p>
-              <dl class="info-list" style="margin-top: 0;">
-                <div><dt>Runs tracked</dt><dd>{{ system_snapshot.case_count }}</dd></div>
-                <div><dt>Documents</dt><dd>{{ system_snapshot.document_count }}</dd></div>
-                <div><dt>Managed files</dt><dd>{{ system_snapshot.managed_file_count }}</dd></div>
-                <div><dt>Agent skills</dt><dd>{{ system_snapshot.skill_count }}</dd></div>
-              </dl>
-            </div>
-            <div class="panel">
-              <a href="/run-upload" class="primary-action" style="display:block; text-align:center; text-decoration:none;">New compliance run</a>
-            </div>
-          {% endblock %}
-        </aside>
-
-        <main class="main-surface">
-          {% block content %}{% endblock %}
-        </main>
-      </div>
+        <div id="chat-messages" class="chat-messages">
+            <div class="chat-bubble chat-bubble-bot">How can I help? I can answer questions about your contracts, reviews, deadlines, and agent activity.</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chat-input" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
     </div>
 
-    <div class="loading-overlay" id="loading-overlay" hidden>
-      <div class="loading-content">
-        <span class="spinner"></span>
-        <p id="loading-copy" class="subcopy">Launching run...</p>
-      </div>
-    </div>
-  </body>
+    <script>
+    function toggleNotifications(e){e.stopPropagation();document.getElementById('notif-panel').classList.toggle('open')}
+    document.addEventListener('click',function(e){var p=document.getElementById('notif-panel');if(p&&!p.contains(e.target))p.classList.remove('open')});
+    function toggleChat(){document.getElementById('chat-window').classList.toggle('open');if(document.getElementById('chat-window').classList.contains('open'))document.getElementById('chat-input').focus()}
+    async function sendChat(){var i=document.getElementById('chat-input'),q=i.value.trim();if(!q)return;var m=document.getElementById('chat-messages');var u=document.createElement('div');u.className='chat-bubble chat-bubble-user';u.textContent=q;m.appendChild(u);i.value='';i.disabled=true;var t=document.createElement('div');t.className='chat-bubble chat-bubble-thinking';t.textContent='Thinking...';m.appendChild(t);m.scrollTop=m.scrollHeight;try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});var d=await r.json();t.remove();var b=document.createElement('div');b.className='chat-bubble chat-bubble-bot';b.textContent=d.answer;m.appendChild(b)}catch(e){t.remove();var x=document.createElement('div');x.className='chat-bubble chat-bubble-bot';x.textContent='Sorry, could not process that.';m.appendChild(x)}i.disabled=false;i.focus();m.scrollTop=m.scrollHeight}
+    </script>
+</body>
 </html>

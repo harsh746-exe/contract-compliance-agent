@@ -107,7 +107,7 @@ CONTRACTS = [
         "naics": "541513",
         "summary": "VA seeking 24/7 NOC monitoring, incident management, and capacity planning for nationwide health network infrastructure. Complex SOW with 22+ expected requirements covering SLA tiers, staffing, and FISMA compliance.",
         "our_status": "SOW received - compliance review kickoff scheduled",
-        "run_id": None,
+        "run_id": "CTR-2026-003_initial_review",
         "documents": [],
         "history": [
             {"date": "2026-03-25", "event": "RFP posted on SAM.gov"},
@@ -131,7 +131,11 @@ CONTRACTS = [
         "naics": "541512",
         "summary": "Help desk (Tier 1-3), infrastructure monitoring, patch management, and SLA-driven operations support. Agent team completed full compliance review - 15 requirements analyzed across SLA, security, staffing, and transition domains.",
         "our_status": "Compliance review complete - 5 compliant, 7 partial, 3 gaps identified",
-        "run_id": "it_services_compliance_02",
+        "run_id": "CTR-2026-004_reanalysis",
+        "run_history": [
+            "CTR-2026-004_compliance_review",
+            "CTR-2026-004_reanalysis",
+        ],
         "documents": [
             {"name": "sow_requirements.txt", "role": "SOW / Requirements Source"},
             {"name": "vendor_proposal.txt", "role": "Our Draft Proposal"},
@@ -164,7 +168,7 @@ CONTRACTS = [
         "naics": "541512",
         "summary": "Cloud migration to AWS GovCloud, CI/CD pipeline implementation, zero-trust architecture, and staff augmentation. Agent team drafting proposal sections based on SOW requirements and prior contract performance data.",
         "our_status": "Proposal draft in progress - comparison with prior contract complete",
-        "run_id": "draft_proposal_review",
+        "run_id": "CTR-2026-005_draft_review",
         "documents": [
             {"name": "modernization_sow.txt", "role": "SOW / Requirements Source"},
             {"name": "prior_contract.txt", "role": "Prior Contract Reference"},
@@ -194,7 +198,7 @@ CONTRACTS = [
         "naics": "541512",
         "summary": "SOC operations, threat hunting, vulnerability management, and FedRAMP compliance support. Agent compliance review achieved 100% accuracy against SME ground truth. Proposal submitted on time.",
         "our_status": "Submitted Mar 15 - awaiting award, debrief team on standby",
-        "run_id": "compliance_review_case_01",
+        "run_id": "CTR-2026-006_final_review",
         "documents": [],
         "history": [
             {"date": "2026-01-20", "event": "RFP released"},

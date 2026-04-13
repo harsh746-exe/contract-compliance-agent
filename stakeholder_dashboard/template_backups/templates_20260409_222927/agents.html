@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Team snapshot</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Latest reviewed case</dt><dd>{% if registry.latest_run %}{{ registry.latest_run.title }}{% else %}n/a{% endif %}</dd></div>
+      <div><dt>Agent roles</dt><dd>{{ registry.agents | length }}</dd></div>
+      <div><dt>Registered skills</dt><dd>{{ registry.skills | length }}</dd></div>
+      <div><dt>Communication nodes</dt><dd>{{ registry.matrix_agents | length }}</dd></div>
+    </dl>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel hero-panel">
+    <h2>System architecture</h2>
+    <p class="panel-copy">This system operates as a team of 10 AI agents communicating over an in-process message bus. The orchestrator plans each analysis step using an LLM (Gemma 3 27B), delegating work to specialist agents who invoke skills from a registry of 33 capabilities. Every decision and communication is logged for full transparency.</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Agent roles</h2>
+      <span class="section-badge">{{ registry.agents | length }}</span>
+    </div>
+    <div class="card-grid">
+      {% for agent in registry.agents %}
+        {% if agent.agent_id == "notification_agent" %}
+          <article class="card">
+            <p class="eyebrow">Monitoring</p>
+            <h3>Notification agent</h3>
+            <p class="analysis-copy">Monitors contract deadlines, compliance review results, SLA performance, and staffing gaps. Generates prioritized alerts visible in the notification panel.</p>
+            <p style="color: var(--accent); font-size: 0.82rem; margin-top: 8px; font-style: italic;">Like the program coordinator who sends the Monday morning status email.</p>
+            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <span class="badge">Deadline tracking</span>
+              <span class="badge">Gap detection</span>
+              <span class="badge">SLA monitoring</span>
+            </div>
+          </article>
+        {% elif agent.agent_id == "chat_agent" %}
+          <article class="card">
+            <p class="eyebrow">Inquiry</p>
+            <h3>Assistant</h3>
+            <p class="analysis-copy">Answers stakeholder questions about contracts, compliance findings, deadlines, and system activity. Grounded in live system data.</p>
+            <p style="color: var(--accent); font-size: 0.82rem; margin-top: 8px; font-style: italic;">Like the analyst you can message to ask "what's the status on the DOL proposal?"</p>
+            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <span class="badge">Contract queries</span>
+              <span class="badge">Status inquiries</span>
+              <span class="badge">Deadline lookups</span>
+            </div>
+          </article>
+        {% else %}
+          <article class="card">
+            <p class="eyebrow" style="margin-bottom: 6px;">{{ agent.role }}</p>
+            <h3>{{ agent.name }}</h3>
+            {% if agent.analogy %}
+              <p class="section-copy" style="margin-top: 6px; font-style: italic;">{{ agent.analogy }}</p>
+            {% endif %}
+            <p class="analysis-copy" style="margin-top: 10px;">{{ agent.description }}</p>
+            <div class="document-meta-pills" style="margin-top: 12px;">
+              <span>Status: {{ agent.status }}</span>
+              <span>Tasks sent: {{ agent.messages_sent }}</span>
+              <span>Responses: {{ agent.messages_received }}</span>
+            </div>
+            <div class="agent-pill-list" style="margin-top: 12px;">
+              {% if agent.skills %}
+                {% for skill in agent.skills[:8] %}
+                  <span class="agent-pill">{{ skill }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="agent-pill">No skills recorded</span>
+              {% endif %}
+            </div>
+          </article>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>How agents communicate</h2>
+      <span class="section-badge">Architecture</span>
+    </div>
+    <p class="panel-copy" style="margin-bottom: 14px;">All agents communicate through a central message bus. The orchestrator delegates tasks and collects results; agents do not coordinate peer-to-peer.</p>
+    <p class="panel-copy">This hub-and-spoke pattern improves debuggability and reproducibility because each decision is captured in the audit trail.</p>
+
+    {% if registry.matrix %}
+      <details style="margin-top: 18px;">
+        <summary class="text-link">Show detailed communication matrix</summary>
+        <div style="margin-top: 12px; overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                {% for agent in registry.matrix_agents %}
+                  <th>{{ agent | replace('_', ' ') | title }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in registry.matrix %}
+                <tr>
+                  <td>{{ row.agent | replace('_', ' ') | title }}</td>
+                  {% for value in row.counts %}
+                    <td>{% if value is none %}-{% else %}{{ value }}{% endif %}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Agent capabilities</h2>
+      <span class="section-badge">{{ registry.skills | length }} skills</span>
+    </div>
+    <p class="panel-copy" style="margin-bottom: 18px;">Skills are stateless functions agents invoke during review. They are grouped below by business purpose.</p>
+
+    <div class="card-grid">
+      {% for group in registry.skill_groups %}
+        <article class="card">
+          <p class="eyebrow">{{ group.label }}</p>
+          <p class="analysis-copy">{{ group.skills | join(', ') }}</p>
+          <small style="color: var(--muted);">Used by: {{ group.used_by }}</small>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

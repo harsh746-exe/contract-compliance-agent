@@ -1,69 +1,215 @@
 {% extends "base.html" %}
-
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <p class="eyebrow">Run setup</p>
-    <p class="section-copy">Upload source and response documents, optionally include context files, and choose workflow mode.</p>
-  </div>
-{% endblock %}
-
 {% block content %}
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Launch compliance run</h2>
-      <span class="section-badge">Submit</span>
+<div class="workspace">
+    <div class="ws-sidebar">
+        <div class="panel panel-hero">
+            <div class="eyebrow">New compliance run</div>
+            <p style="font-size:12px;color:var(--muted);line-height:1.6;">
+                Upload the government solicitation and select company documents for the agent team to reference. Past performance, certifications, and personnel records are pre-selected from your library.
+            </p>
+        </div>
+        <div class="panel">
+            <div class="eyebrow">How it works</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+                <div style="margin-bottom:8px;"><strong style="color:var(--text);">1.</strong> Upload the SOW or RFP</div>
+                <div style="margin-bottom:8px;"><strong style="color:var(--text);">2.</strong> Upload your draft proposal (if ready)</div>
+                <div style="margin-bottom:8px;"><strong style="color:var(--text);">3.</strong> Select company context from the library</div>
+                <div><strong style="color:var(--text);">4.</strong> Launch - the agent team does the rest</div>
+            </div>
+        </div>
     </div>
-    <form action="/run-upload" method="post" enctype="multipart/form-data" class="stacked-form" data-loading-copy="Launching compliance run...">
-      <label>
-        <span>Policy / SOW / Requirements Document</span>
-        <input type="file" name="source_document" required />
-      </label>
-      <label>
-        <span>Proposal / Response Document</span>
-        <input type="file" name="response_document" required />
-      </label>
-      <label>
-        <span>Prior Contracts, Amendments, Glossary</span>
-        <input type="file" name="context_documents" multiple />
-      </label>
-      <label>
-        <span>Workflow Type</span>
-        <select name="workflow_type">
-          <option value="compliance_review">Compliance Review</option>
-          <option value="proposal_drafting">Proposal Drafting</option>
-        </select>
-      </label>
-      <label>
-        <span>Run Name (optional)</span>
-        <input type="text" name="run_name" placeholder="Auto-generated if blank" />
-      </label>
-      <button class="primary-action" type="submit">Launch compliance run</button>
-    </form>
-  </div>
 
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Uploaded documents</h2>
-      <span class="section-badge">{{ uploaded_documents | length }}</span>
+    <div class="ws-main">
+        {% if error %}
+        <div class="panel" style="margin-bottom:16px;border-color:var(--bad);">
+            <div style="font-size:12px;color:var(--bad);font-weight:600;">{{ error }}</div>
+        </div>
+        {% endif %}
+
+        <form action="/run-upload" method="post" enctype="multipart/form-data">
+            <div class="panel" style="margin-bottom:16px;">
+                <div class="section-head">
+                    <h2>Government solicitation</h2>
+                    <span class="section-tag section-tag-accent">Required</span>
+                </div>
+                <div class="desc">Upload the RFP, RFI, or SOW from the government. This is the document the agent team will extract requirements from.</div>
+
+                <div class="form-stack">
+                    <label>
+                        <span>Upload new solicitation</span>
+                        <input type="file" name="source_file" accept=".txt,.pdf,.docx">
+                    </label>
+                </div>
+
+                {% if opportunity_docs %}
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+                    <div class="eyebrow">Or select from library</div>
+                    {% for d in opportunity_docs %}
+                    {% if 'solicitation' in d.display_path.lower() or 'sow' in d.name.lower() or 'source' in d.name.lower() %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="radio" name="source_library" value="{{ d.path }}" style="accent-color:var(--accent);">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="panel" style="margin-bottom:16px;">
+                <div class="section-head">
+                    <h2>Our proposal or response</h2>
+                    <span class="section-tag section-tag-warn">Optional</span>
+                </div>
+                <div class="desc">Upload your draft proposal for the agent team to check against the solicitation requirements. If not provided, the review will only extract and categorize requirements.</div>
+
+                <div class="form-stack">
+                    <label>
+                        <span>Upload draft proposal</span>
+                        <input type="file" name="response_file" accept=".txt,.pdf,.docx">
+                    </label>
+                </div>
+
+                {% if opportunity_docs %}
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+                    <div class="eyebrow">Or select from library</div>
+                    {% for d in opportunity_docs %}
+                    {% if 'proposal' in d.display_path.lower() or 'response' in d.name.lower() or 'vendor' in d.name.lower() %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="radio" name="response_library" value="{{ d.path }}" style="accent-color:var(--accent);">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="panel" style="margin-bottom:16px;">
+                <div class="section-head">
+                    <h2>Company context</h2>
+                </div>
+                <div class="desc">Select documents from your library for the agent team to reference. Key documents are pre-selected. The team uses these for past performance citations, staffing verification, and certification checks.</div>
+
+                <div style="margin-bottom:18px;">
+                    <div class="eyebrow">Past performance</div>
+                    {% for d in company_docs %}
+                    {% if d.category == 'past_performance' %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="checkbox" name="context_docs" value="{{ d.path }}"
+                               {% if d.path in default_selected %}checked{% endif %}
+                               style="accent-color:var(--accent);width:16px;height:16px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div style="margin-bottom:18px;">
+                    <div class="eyebrow">Corporate documents</div>
+                    {% for d in company_docs %}
+                    {% if d.category == 'corporate' %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="checkbox" name="context_docs" value="{{ d.path }}"
+                               {% if d.path in default_selected %}checked{% endif %}
+                               style="accent-color:var(--accent);width:16px;height:16px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div style="margin-bottom:18px;">
+                    <div class="eyebrow">Personnel and certifications</div>
+                    {% for d in company_docs %}
+                    {% if d.category == 'hr' %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="checkbox" name="context_docs" value="{{ d.path }}"
+                               {% if d.path in default_selected %}checked{% endif %}
+                               style="accent-color:var(--accent);width:16px;height:16px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div>
+                    <div class="eyebrow">Management and facilities</div>
+                    {% for d in company_docs %}
+                    {% if d.category == 'management' %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px;">
+                        <input type="checkbox" name="context_docs" value="{{ d.path }}"
+                               {% if d.path in default_selected %}checked{% endif %}
+                               style="accent-color:var(--accent);width:16px;height:16px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;">{{ d.name }}</div>
+                            <div style="font-size:11px;color:var(--muted);">{{ d.display_path }}</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--muted);">{{ d.size }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="panel" style="margin-bottom:16px;">
+                <div class="section-head">
+                    <h2>Run configuration</h2>
+                </div>
+                <div class="form-stack">
+                    <label>
+                        <span>Run name (auto-generated if blank)</span>
+                        <input type="text" name="run_name" placeholder="e.g. CTR-2026-003_initial_review">
+                    </label>
+                    <label>
+                        <span>Workflow type</span>
+                        <select name="workflow_type">
+                            <option value="compliance_review">Compliance review - check proposal against SOW</option>
+                            <option value="drafting">Proposal drafting - generate response sections</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Link to contract (optional)</span>
+                        <select name="contract_id">
+                            <option value="">None</option>
+                            {% for c in contracts %}
+                            <option value="{{ c.id }}">{{ c.id }} - {{ c.title[:50] }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div class="panel" style="text-align:center;">
+                <button type="submit" class="btn btn-primary" style="min-width:300px;padding:14px 24px;font-size:13px;">
+                    Launch agent review
+                </button>
+                <p style="font-size:11px;color:var(--muted);margin-top:10px;">
+                    The agent team will parse documents, extract requirements, retrieve evidence, and assess compliance.
+                    Typical runtime: 1-3 minutes depending on document size.
+                </p>
+            </div>
+        </form>
     </div>
-    {% if uploaded_documents %}
-      <div class="file-table">
-        {% for doc in uploaded_documents %}
-          <div class="file-row">
-            <div class="file-row-main">
-              <h3>{{ doc.name }}</h3>
-              <p class="analysis-copy">{{ doc.path }}</p>
-            </div>
-            <div class="file-row-side">
-              <span>{{ doc.type }}</span>
-              <span>{{ doc.size_label }}</span>
-            </div>
-            <div></div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="empty-copy">No uploaded documents available yet.</p>
-    {% endif %}
-  </div>
+</div>
 {% endblock %}

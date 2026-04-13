@@ -1,105 +1,97 @@
 {% extends "base.html" %}
 
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <p class="eyebrow">Registry snapshot</p>
-    <dl class="info-list" style="margin-top: 0;">
-      <div><dt>Latest run</dt><dd>{% if registry.latest_run %}{{ registry.latest_run.run_id }}{% else %}n/a{% endif %}</dd></div>
-      <div><dt>Agents</dt><dd>{{ registry.agents | length }}</dd></div>
-      <div><dt>Skills</dt><dd>{{ registry.skills | length }}</dd></div>
-      <div><dt>Matrix nodes</dt><dd>{{ registry.matrix_agents | length }}</dd></div>
-    </dl>
-  </div>
-{% endblock %}
-
 {% block content %}
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Agent registry</h2>
-      <span class="section-badge">{{ registry.agents | length }}</span>
-    </div>
-    <div class="card-grid">
-      {% for agent in registry.agents %}
-        <article class="card">
-          <p class="eyebrow" style="margin-bottom: 6px;">{{ agent.role }}</p>
-          <h3>{{ agent.name }}</h3>
-          <p class="analysis-copy" style="margin-top: 10px;">{{ agent.description }}</p>
-          <div class="document-meta-pills" style="margin-top: 12px;">
-            <span>Status: {{ agent.status }}</span>
-            <span>Sent: {{ agent.messages_sent }}</span>
-            <span>Received: {{ agent.messages_received }}</span>
-          </div>
-          <div class="agent-pill-list" style="margin-top: 12px;">
-            {% if agent.skills %}
-              {% for skill in agent.skills %}
-                <span class="agent-pill">{{ skill }}</span>
-              {% endfor %}
-            {% else %}
-              <span class="agent-pill">No skills recorded</span>
-            {% endif %}
-          </div>
-        </article>
-      {% endfor %}
-    </div>
-  </div>
+<div class="ws-full">
+    <section class="panel panel-hero">
+        <p class="eyebrow">Agent team</p>
+        <h1>How the agent team operates</h1>
+        <p class="desc">RELY coordinates specialized agents through one orchestrator. Every delegation and result is recorded so review decisions stay transparent.</p>
+        <div class="stats-grid">
+            <div class="stat-card stat-card-dark">
+                <div class="val">{{ registry.agents | length }}</div>
+                <div class="label">Agent roles</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">{{ registry.skills | length }}</div>
+                <div class="label">Registered skills</div>
+            </div>
+            <div class="stat-card stat-card-good">
+                <div class="val">{{ registry.matrix_agents | length }}</div>
+                <div class="label">Communication nodes</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">{% if registry.latest_run %}1{% else %}0{% endif %}</div>
+                <div class="label">Recent review loaded</div>
+            </div>
+        </div>
+    </section>
 
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Agent interaction matrix</h2>
-      <span class="section-badge">{{ registry.matrix | length }}</span>
-    </div>
-    {% if registry.matrix %}
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Agent</th>
-              {% for agent in registry.matrix_agents %}
-                <th>{{ agent }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in registry.matrix %}
-              <tr>
-                <td>{{ row.agent }}</td>
-                {% for value in row.counts %}
-                  <td>{% if value is none %}-{% else %}{{ value }}{% endif %}</td>
-                {% endfor %}
-              </tr>
+    <section class="panel">
+        <div class="section-head">
+            <h2>Agent roles</h2>
+            <span class="section-tag section-tag-accent">{{ registry.agents | length }} agents</span>
+        </div>
+        <p class="desc">Each role owns a distinct part of the compliance workflow.</p>
+
+        <div class="agent-grid">
+            {% for agent in registry.agents %}
+            <article class="agent-card {% if agent.agent_id == 'orchestrator' %}agent-card-primary{% endif %}">
+                <p class="eyebrow">{{ agent.role }}</p>
+                <h3>{{ agent.name }}</h3>
+                <p>{{ agent.description }}</p>
+                {% if agent.analogy %}
+                <p class="agent-analogy">{{ agent.analogy }}</p>
+                {% endif %}
+
+                <div class="pills" style="margin-bottom:8px;">
+                    <span class="status-pill sp-muted">{{ agent.status | capitalize }}</span>
+                    <span class="status-pill sp-muted">Sent {{ agent.messages_sent }}</span>
+                    <span class="status-pill sp-muted">Received {{ agent.messages_received }}</span>
+                </div>
+
+                <div class="agent-skills">
+                    {% if agent.skills %}
+                        {% for skill in agent.skills[:10] %}
+                        <span class="agent-skill">{{ skill }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="agent-skill">No skill activity recorded</span>
+                    {% endif %}
+                </div>
+            </article>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p class="empty-copy">No audit log available.</p>
-    {% endif %}
-  </div>
+        </div>
+    </section>
 
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Skill registry</h2>
-      <span class="section-badge">{{ registry.skills | length }}</span>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Skill</th>
-          <th>Tags</th>
-          <th>LLM Tier</th>
-          <th>Agents</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for skill in registry.skills %}
-          <tr>
-            <td>{{ skill.name }}</td>
-            <td>{{ skill.tags }}</td>
-            <td>{{ skill.llm_tier }}</td>
-            <td>{{ skill.agents }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <section class="panel">
+        <div class="section-head">
+            <h2>Capability groups</h2>
+            <span class="section-tag section-tag-good">{{ registry.skill_groups | length }} groups</span>
+        </div>
+        <p class="desc">Capabilities are grouped by workflow function and ownership.</p>
+
+        <div class="skill-groups">
+            {% for group in registry.skill_groups %}
+            <article class="skill-group">
+                <div class="skill-group-label">{{ group.label }}</div>
+                <div class="skill-group-list">{{ group.skills | join(', ') }}</div>
+                <div class="skill-group-used">Used by {{ group.used_by }}</div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-head">
+            <h2>Communication model</h2>
+            <span class="section-tag section-tag-accent">Bus architecture</span>
+        </div>
+        <div class="comm-block">
+            Agents do not coordinate peer-to-peer. The orchestrator assigns tasks through the message bus, collects results, and decides the next step. This keeps handoffs consistent, prevents duplicate work, and makes the audit trail easier to review.
+            {% if registry.latest_run %}
+            Latest run observed: {{ registry.latest_run.title }}.
+            {% endif %}
+        </div>
+    </section>
+</div>
 {% endblock %}

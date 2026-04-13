@@ -3,14 +3,32 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import config
-from .agentic import DOCUMENT_ROLES, DocumentInput
+
+DOCUMENT_ROLES = {
+    "solicitation_or_requirement_source",
+    "response_or_proposal",
+    "glossary",
+    "prior_contract",
+    "prior_proposal",
+    "amendment",
+    "past_performance",
+}
+
+
+class DocumentInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    role: str
+    label: Optional[str] = None
+    confidence: Optional[float] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DemoScenario(BaseModel):
@@ -44,7 +62,7 @@ def load_scenario(scenario_dir: Path | str) -> DemoScenario:
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     scenario = DemoScenario.model_validate(payload)
 
-    if scenario.mode not in {"linear", "agentic", "mcp", "compliance_review"}:
+    if scenario.mode not in {"mcp", "compliance_review", "agentic", "linear"}:
         raise ValueError(f"Unsupported scenario mode: {scenario.mode}")
     if not scenario.documents:
         raise ValueError("Scenario must define at least one document.")
@@ -90,7 +108,7 @@ def scenario_ground_truth_path(scenario: DemoScenario, scenario_dir: Path | str)
 
 
 def extract_linear_inputs(documents: List[DocumentInput]) -> Dict[str, Optional[str]]:
-    """Map scenario documents to the linear pipeline's path-based inputs."""
+    """Map scenario documents to path-based inputs used by CLI and dashboard."""
     policy = _first_path(documents, "solicitation_or_requirement_source")
     response = _first_path(documents, "response_or_proposal")
     glossary = _first_path(documents, "glossary")
@@ -108,27 +126,8 @@ def extract_linear_inputs(documents: List[DocumentInput]) -> Dict[str, Optional[
     }
 
 
-def materialize_agentic_artifacts(artifacts: Dict[str, str], output_dir: Path) -> Dict[str, str]:
-    """Copy agentic artifacts into the stable scenario output directory."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    materialized = {}
-
-    for label, path_str in artifacts.items():
-        source = Path(path_str)
-        if not source.exists():
-            continue
-        destination = output_dir / source.name
-        if source.resolve() != destination.resolve():
-            shutil.copy2(source, destination)
-        materialized[label] = str(destination)
-
-    return materialized
-
-
 def find_results_json(output_dir: Path, run_id: str) -> Path:
     """Locate the results JSON for evaluation within a scenario output directory."""
-    # MCP runs emit a stable compliance_results.json artifact.
-    # Prefer it over legacy/stale run_id-specific results files.
     mcp_results = output_dir / "compliance_results.json"
     if mcp_results.exists():
         return mcp_results

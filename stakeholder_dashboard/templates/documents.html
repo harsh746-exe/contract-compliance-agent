@@ -1,118 +1,141 @@
 {% extends "base.html" %}
 
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <div class="section-heading">
-      <h2>Upload documents</h2>
-      <span class="section-badge">Files</span>
-    </div>
-    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="stacked-form upload-drop-zone" data-loading-copy="Uploading documents...">
-      <label>
-        <span>Select files</span>
-        <input type="file" name="files" multiple required />
-      </label>
-      <button class="primary-action" type="submit">Upload files</button>
-    </form>
-    <p class="section-copy" style="margin-top: 10px;">Files are stored under <code>data/uploads/</code>.</p>
-  </div>
-{% endblock %}
-
 {% block content %}
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Scenario documents</h2>
-      <span class="section-badge">{{ inventory.scenario_documents | length }}</span>
-    </div>
-    <div class="requirements-list">
-      {% for doc in inventory.scenario_documents %}
-        <details class="document-card">
-          <summary class="document-summary">
-            <div>
-              <h3>{{ doc.name }}</h3>
-              <p class="analysis-copy">{{ doc.scenario }}</p>
-            </div>
-            <div class="document-meta-pills">
-              <span>{{ doc.role_label }}</span>
-              <span>{{ doc.type }}</span>
-              <span>{{ doc.size_label }}</span>
-            </div>
-          </summary>
-          <div class="document-body">
-            <p class="path-label">{{ doc.path }}</p>
-            <pre>{{ doc.preview[:2000] }}</pre>
-            {% if doc.preview|length > 2000 %}
-              <details style="margin-top: 10px;">
-                <summary class="text-link">Show more</summary>
-                <pre style="margin-top: 8px;">{{ doc.preview[2000:] }}</pre>
-              </details>
-            {% endif %}
-            <p class="section-copy" style="margin-top: 12px;">Runs using this document:</p>
-            {% if doc.usage %}
-              <div class="run-list" style="margin-top: 6px;">
-                {% for use in doc.usage %}
-                  <a class="run-link" href="/runs/{{ use.scope }}">
-                    <strong>{{ use.run_id }}</strong>
-                    <small>{{ use.role_label }}{% if use.requirements_extracted %} · {{ use.requirements_extracted }} requirements extracted{% endif %}</small>
-                  </a>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="empty-copy">Not used in any completed run yet.</p>
-            {% endif %}
-          </div>
-        </details>
-      {% endfor %}
-    </div>
-  </div>
+<div class="workspace">
+    <aside class="ws-sidebar">
+        <section class="panel">
+            <p class="eyebrow">Library overview</p>
+            <dl class="info-list">
+                <div><dt>Categories</dt><dd>{{ inventory.library_categories | length }}</dd></div>
+                <div><dt>Library files</dt><dd>{{ inventory.library_documents | length }}</dd></div>
+                <div><dt>Uploaded files</dt><dd>{{ inventory.uploaded_documents | length }}</dd></div>
+                <div><dt>Total files</dt><dd>{{ inventory.all_documents | length }}</dd></div>
+            </dl>
+        </section>
 
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Uploaded documents</h2>
-      <span class="section-badge">{{ inventory.uploaded_documents | length }}</span>
-    </div>
-    {% if inventory.uploaded_documents %}
-      <div class="requirements-list">
-        {% for doc in inventory.uploaded_documents %}
-          <details class="document-card">
-            <summary class="document-summary">
-              <div>
-                <h3>{{ doc.name }}</h3>
-                <p class="analysis-copy">{{ doc.scenario }}</p>
-              </div>
-              <div class="document-meta-pills">
-                <span>{{ doc.role_label }}</span>
-                <span>{{ doc.type }}</span>
-                <span>{{ doc.size_label }}</span>
-              </div>
-            </summary>
-            <div class="document-body">
-              <p class="path-label">{{ doc.path }}</p>
-              <pre>{{ doc.preview[:2000] }}</pre>
-              {% if doc.preview|length > 2000 %}
-                <details style="margin-top: 10px;">
-                  <summary class="text-link">Show more</summary>
-                  <pre style="margin-top: 8px;">{{ doc.preview[2000:] }}</pre>
-                </details>
-              {% endif %}
-              <p class="section-copy" style="margin-top: 12px;">Runs using this document:</p>
-              {% if doc.usage %}
-                <div class="run-list" style="margin-top: 6px;">
-                  {% for use in doc.usage %}
-                    <a class="run-link" href="/runs/{{ use.scope }}">
-                      <strong>{{ use.run_id }}</strong>
-                      <small>{{ use.role_label }}</small>
-                    </a>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <p class="empty-copy">Not used in any completed run yet.</p>
-              {% endif %}
+        <section class="panel">
+            <div class="section-head">
+                <h2>Upload files</h2>
+                <span class="section-tag section-tag-accent">Library</span>
             </div>
-          </details>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="empty-copy">No uploaded documents yet.</p>
-    {% endif %}
-  </div>
+            <form action="/documents/upload" method="post" enctype="multipart/form-data" class="form-stack">
+                <label>
+                    <span>Select one or more files</span>
+                    <input type="file" name="files" multiple required>
+                </label>
+                <button type="submit" class="btn btn-primary btn-full">Upload documents</button>
+            </form>
+        </section>
+    </aside>
+
+    <main class="ws-main">
+        <section class="panel panel-hero">
+            <p class="eyebrow">Document library</p>
+            <h1>Documents used in reviews</h1>
+            <p class="desc">Browse policy, proposal, and reference documents available to the agent team during analysis and drafting.</p>
+            <div class="form-stack" style="max-width: 420px; margin-top: 10px;">
+                <label>
+                    <span>Search documents</span>
+                    <input id="library-search" type="text" placeholder="Search by file name or category">
+                </label>
+            </div>
+        </section>
+
+        {% if inventory.library_categories %}
+            {% for category in inventory.library_categories %}
+            <section class="panel library-panel" data-library-category>
+                <div class="section-head">
+                    <h2>{{ category.label | lower | capitalize }}</h2>
+                    <span class="section-tag section-tag-accent">{{ category.count }} files</span>
+                </div>
+                <p class="desc">{{ category.description }}</p>
+
+                <div class="folder open" data-folder-search="{{ (category.label ~ ' ' ~ category.description) | lower }}">
+                    <div class="folder-head" onclick="toggleFolder(this)">
+                        <span class="folder-chev">></span>
+                        <svg class="folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span class="folder-name">{{ category.label | lower | capitalize }}</span>
+                        <span class="folder-count">{{ category.documents | length }}</span>
+                    </div>
+                    <div class="folder-children">
+                        {% for doc in category.documents %}
+                        <div class="file-item" data-file-search="{{ (doc.name ~ ' ' ~ category.label ~ ' ' ~ doc.role_label) | lower }}">
+                            <svg class="file-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="file-name">{{ doc.name }}</span>
+                            <span class="file-size">{{ doc.size_label }}{% if doc.usage %} - {{ doc.usage | length }} uses{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endfor %}
+        {% else %}
+            <section class="panel">
+                <p class="desc" style="margin-bottom:0;">No library documents are available yet.</p>
+            </section>
+        {% endif %}
+
+        {% if inventory.uploaded_documents %}
+        <section class="panel library-panel" data-library-category>
+            <div class="section-head">
+                <h2>Recent uploads</h2>
+                <span class="section-tag section-tag-good">{{ inventory.uploaded_documents | length }} files</span>
+            </div>
+            <p class="desc">Recently uploaded files are available for new compliance runs.</p>
+
+            <div class="folder open" data-folder-search="recent uploads workspace">
+                <div class="folder-head" onclick="toggleFolder(this)">
+                    <span class="folder-chev">></span>
+                    <svg class="folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span class="folder-name">Workspace uploads</span>
+                    <span class="folder-count">{{ inventory.uploaded_documents | length }}</span>
+                </div>
+                <div class="folder-children">
+                    {% for doc in inventory.uploaded_documents[:40] %}
+                    <div class="file-item" data-file-search="{{ (doc.name ~ ' upload') | lower }}">
+                        <svg class="file-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span class="file-name">{{ doc.name }}</span>
+                        <span class="file-size">{{ doc.size_label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+</div>
+
+<script>
+function toggleFolder(el){
+    el.parentElement.classList.toggle('open');
+}
+
+(function(){
+    var input = document.getElementById('library-search');
+    if(!input){ return; }
+
+    function applyFilter(){
+        var query = (input.value || '').toLowerCase().trim();
+        var panels = document.querySelectorAll('.library-panel');
+
+        panels.forEach(function(panel){
+            var files = panel.querySelectorAll('[data-file-search]');
+            var folder = panel.querySelector('[data-folder-search]');
+            var folderMatch = folder ? (folder.getAttribute('data-folder-search') || '').includes(query) : false;
+            var anyMatch = false;
+
+            files.forEach(function(file){
+                var text = (file.getAttribute('data-file-search') || '');
+                var match = !query || text.includes(query) || folderMatch;
+                file.style.display = match ? '' : 'none';
+                if(match){ anyMatch = true; }
+            });
+
+            panel.style.display = (!query || anyMatch || folderMatch) ? '' : 'none';
+        });
+    }
+
+    input.addEventListener('input', applyFilter);
+})();
+</script>
 {% endblock %}

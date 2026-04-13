@@ -1,177 +1,207 @@
 {% extends "base.html" %}
 
-{% set stage_label = stage.label if stage and stage.label else contract.stage | replace('_', ' ') | title %}
-{% set stage_status_class = 'status-muted' %}
-{% if contract.stage in ['active', 'completed'] %}{% set stage_status_class = 'status-good' %}{% endif %}
-{% if contract.stage in ['review', 'drafting'] %}{% set stage_status_class = 'status-warn' %}{% endif %}
-{% if contract.stage == 'submitted' %}{% set stage_status_class = 'status-muted' %}{% endif %}
-
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <p class="eyebrow">Contract profile</p>
-    <dl class="info-list" style="margin-top: 0;">
-      <div><dt>Contract ID</dt><dd>{{ contract.id }}</dd></div>
-      <div><dt>Agency</dt><dd>{{ contract.agency }}</dd></div>
-      <div><dt>Solicitation</dt><dd>{{ contract.solicitation }}</dd></div>
-      <div><dt>NAICS</dt><dd>{{ contract.naics }}</dd></div>
-      <div><dt>Value</dt><dd>{{ contract.value }}</dd></div>
-      <div><dt>Due</dt><dd>{{ contract.due_date or 'n/a' }}</dd></div>
-    </dl>
-    <div class="inline-actions" style="margin-top: 14px;">
-      {% if contract.run_id %}
-        <a href="/runs/{{ contract.run_id }}" class="inline-action">View analysis</a>
-        <a href="/runs/{{ contract.run_id }}/workflow" class="inline-action secondary-link">Workflow</a>
-      {% elif contract.stage == 'solicitation' %}
-        <a href="/run-upload" class="inline-action">Start review</a>
-      {% endif %}
-      <a href="/" class="inline-action secondary-link">Back to pipeline</a>
-    </div>
-  </div>
-{% endblock %}
+{% set stage_label = stage.label if stage and stage.label else contract.stage | replace('_', ' ') | capitalize %}
+{% set stage_tone = 'section-tag-accent' %}
+{% if contract.stage in ['active', 'completed'] %}{% set stage_tone = 'section-tag-good' %}{% endif %}
+{% if contract.stage in ['review', 'drafting'] %}{% set stage_tone = 'section-tag-warn' %}{% endif %}
 
 {% block content %}
-  <div class="panel">
-    <div class="section-heading">
-      <h2>{{ contract.title }}</h2>
-      <span class="status-pill {{ stage_status_class }}">{{ stage_label }}</span>
-    </div>
-    <p class="analysis-copy">{{ contract.summary }}</p>
-    <p class="section-copy" style="margin-top: 10px;">Status: {{ contract.our_status }}</p>
-  </div>
+<div class="workspace">
+    <aside class="ws-sidebar">
+        <section class="panel">
+            <p class="eyebrow">Contract overview</p>
+            <dl class="info-list">
+                <div><dt>Contract ID</dt><dd>{{ contract.id }}</dd></div>
+                <div><dt>Agency</dt><dd>{{ contract.agency }}</dd></div>
+                <div><dt>Solicitation</dt><dd>{{ contract.solicitation }}</dd></div>
+                <div><dt>NAICS</dt><dd>{{ contract.naics }}</dd></div>
+                <div><dt>Value</dt><dd>{{ contract.value }}</dd></div>
+                <div><dt>Due</dt><dd>{{ contract.due_date or 'n/a' }}</dd></div>
+                <div><dt>Stage</dt><dd>{{ stage_label | lower | capitalize }}</dd></div>
+            </dl>
+        </section>
 
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Contract timeline</h2>
-      <span class="section-badge">{{ contract.history | length }} events</span>
-    </div>
-    <div class="run-list">
-      {% for event in contract.history | reverse %}
-        <div class="run-link" style="pointer-events: none; cursor: default;">
-          <strong>{{ event.date }}</strong>
-          <small>{{ event.event }}</small>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  {% if contract.documents %}
-    <div class="panel">
-      <div class="section-heading">
-        <h2>Documents</h2>
-        <span class="section-badge">{{ contract.documents | length }}</span>
-      </div>
-      <div class="file-table">
-        {% for doc in contract.documents %}
-          <div class="file-row">
-            <div class="file-row-main">
-              <h3>{{ doc.name }}</h3>
-              <p class="analysis-copy">{{ doc.role }}</p>
+        <section class="panel">
+            <div class="section-head">
+                <h2>Actions</h2>
+                <span class="section-tag section-tag-accent">Quick</span>
             </div>
-            <div class="file-row-side"><span>Attached</span></div>
-            <div></div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
+            <div class="card-actions" style="margin-top:0;">
+                <a class="btn btn-secondary" href="/">Back to contracts</a>
+                {% if contract.run_id %}
+                <a class="btn btn-primary" href="/runs/{{ contract.run_id }}">View findings</a>
+                <a class="btn btn-secondary" href="/runs/{{ contract.run_id }}/workflow">Agent workflow</a>
+                {% elif contract.stage == 'solicitation' %}
+                <a class="btn btn-primary" href="/run-upload">Start review</a>
+                {% endif %}
+            </div>
+        </section>
+    </aside>
 
-  {% set requirement_rows = run_bundle.requirements if run_bundle and run_bundle.requirements else [] %}
-  {% if requirement_rows %}
-    <div class="panel">
-      <div class="section-heading">
-        <h2>Agent results</h2>
-        <span class="section-badge">{{ requirement_rows | length }} requirements</span>
-      </div>
-      <div class="requirements-list">
-        {% for d in requirement_rows %}
-          <details class="requirement-row">
-            <summary class="requirement-summary">
-              <div class="requirement-summary-copy">
-                <p class="req-id">{{ d.requirement_id }}</p>
-                <h3>{{ d.requirement_text[:140] }}{% if d.requirement_text|length > 140 %}...{% endif %}</h3>
-                <p class="analysis-copy">{{ d.explanation or 'No assessment narrative.' }}</p>
-              </div>
-              <div class="requirement-summary-meta">
-                {% set status_class = 'status-muted' %}
-                {% if d.label == 'compliant' %}{% set status_class = 'status-good' %}{% endif %}
-                {% if d.label == 'partial' %}{% set status_class = 'status-warn' %}{% endif %}
-                {% if d.label == 'not_compliant' %}{% set status_class = 'status-bad' %}{% endif %}
-                <span class="status-pill {{ status_class }}">{{ d.label | replace('_', ' ') }}</span>
-                <small>Confidence {{ '%.2f'|format(d.confidence or 0) }}</small>
-              </div>
-            </summary>
-            <div class="requirement-body">
-              <div class="requirement-meta">
-                <span>Mode: {{ d.execution_mode or 'fallback' }}</span>
-                <span>Evidence: {{ d.evidence_chunks | length }}</span>
-              </div>
-              {% if d.evidence_chunks %}
-                <div class="evidence-grid">
-                  {% for chunk in d.evidence_chunks[:4] %}
-                    <div class="evidence-item">
-                      <div class="evidence-meta">
-                        <span>{{ chunk.source_citation or 'Unknown source' }}</span>
-                        <span>Score {{ '%.3f'|format(chunk.retrieval_score or 0) }}</span>
-                      </div>
-                      <p class="analysis-copy">{{ chunk.evidence_text[:320] }}{% if chunk.evidence_text|length > 320 %}...{% endif %}</p>
-                    </div>
-                  {% endfor %}
+    <main class="ws-main">
+        <section class="panel panel-hero">
+            <p class="eyebrow">Contract summary</p>
+            <h1>{{ contract.title }}</h1>
+            <p class="desc">{{ contract.summary }}</p>
+            <div class="pills">
+                <span class="status-pill {{ 'sp-good' if contract.stage in ['active', 'completed'] else ('sp-warn' if contract.stage in ['review', 'drafting'] else 'sp-muted') }}">{{ stage_label | lower | capitalize }}</span>
+                <span class="status-pill sp-muted">{{ contract.our_status }}</span>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>Contract timeline</h2>
+                <span class="section-tag {{ stage_tone }}">{{ contract.history | length }} events</span>
+            </div>
+            {% for event in contract.history | reverse %}
+            <div class="trace-step">
+                <div class="trace-num">{{ loop.index }}</div>
+                <div class="trace-content">
+                    <div class="trace-action">{{ event.event }}</div>
+                    <div class="trace-meta">{{ event.date }}</div>
                 </div>
-              {% endif %}
             </div>
-          </details>
-        {% endfor %}
-      </div>
-    </div>
-  {% elif contract.performance %}
-    <div class="panel">
-      <div class="section-heading">
-        <h2>Performance dashboard</h2>
-        <span class="section-badge">Delivery</span>
-      </div>
+            {% endfor %}
+        </section>
 
-      {% if contract.performance.sla_metrics %}
-        <h3 style="margin-bottom: 12px;">SLA metrics</h3>
-        <div class="stats-grid">
-          {% for m in contract.performance.sla_metrics %}
-            <div class="metric {% if m.status == 'exceeded' %}metric-good{% elif m.status == 'met' %}metric-accent{% else %}metric-warn{% endif %}">
-              <span>{{ m.name }}</span>
-              <strong>{{ m.actual }}</strong>
-              <small>Target {{ m.target }}</small>
+        {% if contract.documents %}
+        <section class="panel">
+            <div class="section-head">
+                <h2>Contract documents</h2>
+                <span class="section-tag section-tag-accent">{{ contract.documents | length }} files</span>
             </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      {% if contract.performance.cpars is defined and contract.performance.cpars is mapping %}
-        <h3 style="margin-top: 16px; margin-bottom: 12px;">CPARS</h3>
-        <div class="stats-grid">
-          {% for area, rating in contract.performance.cpars.items() %}
-            <div class="metric">
-              <span>{{ area | replace('_', ' ') | title }}</span>
-              <strong>{{ rating }}</strong>
+            <div class="card-grid">
+                {% for doc in contract.documents %}
+                <article class="card">
+                    <div class="card-top">
+                        <span class="card-agency">Document</span>
+                        <span class="card-value">Attached</span>
+                    </div>
+                    <h3>{{ doc.name }}</h3>
+                    <p>{{ doc.role }}</p>
+                </article>
+                {% endfor %}
             </div>
-          {% endfor %}
-        </div>
-      {% endif %}
+        </section>
+        {% endif %}
 
-      {% if contract.performance.recent_highlights is defined %}
-        <h3 style="margin-top: 16px; margin-bottom: 8px;">Recent highlights</h3>
-        <div class="run-list">
-          {% for h in contract.performance.recent_highlights %}
-            <div class="run-link" style="pointer-events: none; cursor: default;"><small>{{ h }}</small></div>
-          {% endfor %}
-        </div>
-      {% endif %}
+        {% if run_bundle and run_bundle.summary_cards %}
+        {% set met_count = run_bundle.summary_cards.compliant or 0 %}
+        {% set gap_count = run_bundle.summary_cards.partial or 0 %}
+        {% set missing_count = (run_bundle.summary_cards.not_addressed or 0) + (run_bundle.summary_cards.not_compliant or 0) %}
+        <section class="panel">
+            <div class="section-head">
+                <h2>Agent review results</h2>
+                <span class="section-tag section-tag-accent">Linked review</span>
+            </div>
+            <p class="desc">The latest linked review found {{ met_count }} met requirements, {{ gap_count }} gaps, and {{ missing_count }} missing items.</p>
 
-      {% if contract.performance.risks is defined %}
-        <h3 style="margin-top: 16px; margin-bottom: 8px;">Active risks</h3>
-        <div class="run-list">
-          {% for r in contract.performance.risks %}
-            <div class="run-link" style="pointer-events: none; cursor: default;"><small>{{ r }}</small></div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    </div>
-  {% endif %}
+            <div class="comp-bar" style="margin-top:6px;">
+                <div class="comp-bar-g" style="flex: {{ met_count }};"></div>
+                <div class="comp-bar-a" style="flex: {{ gap_count }};"></div>
+                <div class="comp-bar-r" style="flex: {{ missing_count }};"></div>
+            </div>
+
+            <div class="stats-grid" style="margin-top:10px;">
+                <div class="stat-card stat-card-good"><div class="val">{{ met_count }}</div><div class="label">Met</div></div>
+                <div class="stat-card stat-card-warn"><div class="val">{{ gap_count }}</div><div class="label">Gap</div></div>
+                <div class="stat-card stat-card-bad"><div class="val">{{ missing_count }}</div><div class="label">Missing</div></div>
+                <div class="stat-card"><div class="val">{{ "%.0f" | format((run_bundle.summary_cards.avg_confidence or 0) * 100) }}%</div><div class="label">Average confidence</div></div>
+            </div>
+
+            {% if run_bundle.requirements %}
+            <div style="margin-top:10px;">
+                {% for item in run_bundle.requirements[:10] %}
+                <article class="req-row">
+                    <div class="req-head" onclick="toggleReq(this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleReq(this);}">
+                        <div class="req-left">
+                            <div class="req-id">{{ item.requirement_id }}</div>
+                            <div class="req-title">{{ item.requirement_text }}</div>
+                            <div class="req-expl">{{ item.explanation or 'No rationale provided.' }}</div>
+                        </div>
+                        <div class="req-right">
+                            {% set req_label = item.label %}
+                            <span class="section-tag {% if req_label == 'compliant' %}section-tag-good{% elif req_label == 'partial' %}section-tag-warn{% else %}section-tag-bad{% endif %}">
+                                {% if req_label == 'compliant' %}Met{% elif req_label == 'partial' %}Gap{% else %}Missing{% endif %}
+                            </span>
+                            <div class="req-conf">{{ "%.0f" | format((item.confidence or 0) * 100) }}%</div>
+                            <div class="req-conf-label">Confidence</div>
+                        </div>
+                    </div>
+                    <div class="req-body">
+                        <div class="detail-label">Full requirement</div>
+                        <p class="desc" style="margin-bottom:0;">{{ item.requirement_text }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if contract.performance %}
+        <section class="panel">
+            <div class="section-head">
+                <h2>Performance overview</h2>
+                <span class="section-tag section-tag-good">Delivery</span>
+            </div>
+
+            {% if contract.performance.sla_metrics %}
+            <div class="card-grid">
+                {% for metric in contract.performance.sla_metrics %}
+                <article class="card">
+                    <div class="card-top">
+                        <span class="card-agency">SLA</span>
+                        <span class="status-pill {% if metric.status == 'exceeded' or metric.status == 'met' %}sp-good{% else %}sp-warn{% endif %}">
+                            {% if metric.status == 'at_risk' %}Gap{% else %}Met{% endif %}
+                        </span>
+                    </div>
+                    <h3>{{ metric.name }}</h3>
+                    <p>Target {{ metric.target }}</p>
+                    <div class="card-value">{{ metric.actual }}</div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if contract.performance.migration_progress %}
+            {% set mig = contract.performance.migration_progress %}
+            {% set pct = ((mig.migrated / mig.total_workloads) * 100) | round(1) if mig.total_workloads else 0 %}
+            <div style="margin-top:12px;">
+                <div class="detail-label">Migration progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ pct }}%;"></div>
+                    <div class="progress-text">{{ mig.migrated }}/{{ mig.total_workloads }} workloads migrated</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if contract.performance.recent_highlights %}
+            <div style="margin-top:10px;">
+                <div class="detail-label">Recent highlights</div>
+                {% for note in contract.performance.recent_highlights %}
+                <div class="evidence-card"><p>{{ note }}</p></div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if contract.performance.risks %}
+            <div style="margin-top:10px;">
+                <div class="detail-label">Active risks</div>
+                {% for risk in contract.performance.risks %}
+                <div class="improve-block" style="margin-top:6px;"><strong>Risk</strong><p>{{ risk }}</p></div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+    </main>
+</div>
+
+<script>
+function toggleReq(el){
+    el.parentElement.classList.toggle('open');
+}
+</script>
 {% endblock %}

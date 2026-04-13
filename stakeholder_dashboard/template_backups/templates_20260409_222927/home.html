@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Workspace status</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Runs completed</dt><dd>{{ system_status.total_runs_completed }}</dd></div>
+      <div><dt>Documents processed</dt><dd>{{ system_status.total_documents_processed }}</dd></div>
+      <div><dt>Decisions made</dt><dd>{{ system_status.total_decisions_made }}</dd></div>
+      <div><dt>Provider</dt><dd>{{ system_status.llm_provider }}</dd></div>
+      <div><dt>Model</dt><dd>{{ system_status.orchestrator_model }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <div class="inline-actions">
+      <form action="/run-demo" method="post" data-loading-copy="Running default scenario...">
+        <button class="primary-action" type="submit">Run default scenario</button>
+      </form>
+      <a class="secondary-action" href="/run-upload">Upload and run custom</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Run summaries</h2>
+      <span class="section-badge">{{ run_cards | length }}</span>
+    </div>
+
+    {% if run_cards %}
+      <div class="card-grid">
+        {% for run in run_cards %}
+          <article class="card">
+            <div class="card-meta">
+              <small>{{ run.run_id }}</small>
+              {% if run.planner_mode == "llm" %}
+                <span class="status-pill status-good">LLM planned</span>
+              {% else %}
+                <span class="status-pill status-muted">{{ run.planner_mode | upper }}</span>
+              {% endif %}
+            </div>
+            <h3>{{ run.title }}</h3>
+            <p class="analysis-copy" style="margin-top: 8px;">
+              {{ run.requirements }} requirements and {{ run.steps }} planning steps
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+              <span class="status-pill status-good">{{ run.compliant }} compliant</span>
+              <span class="status-pill status-warn">{{ run.partial }} partial</span>
+              <span class="status-pill status-muted">{{ run.not_addressed }} not addressed</span>
+            </div>
+            <p class="analysis-copy" style="margin-top: 10px;">
+              Accuracy:
+              {% if run.accuracy is not none %}
+                {{ "%.1f"|format(run.accuracy * 100) }}%
+              {% else %}
+                n/a
+              {% endif %}
+            </p>
+            <div class="inline-actions" style="margin-top: 12px;">
+              <a class="inline-action secondary-link" href="{{ run.view_url }}">View details</a>
+              <a class="inline-action secondary-link" href="{{ run.workflow_url }}">Workflow</a>
+              <a class="inline-action secondary-link" href="{{ run.live_url }}">Replay</a>
+              <a class="inline-action secondary-link" href="{{ run.download_url }}">Download</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-copy">No completed runs found.</p>
+    {% endif %}
+  </div>
+{% endblock %}

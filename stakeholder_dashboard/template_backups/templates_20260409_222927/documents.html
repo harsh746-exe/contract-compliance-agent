@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <div class="section-heading">
+      <h2>Add documents</h2>
+      <span class="section-badge">Library</span>
+    </div>
+    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="stacked-form upload-drop-zone" data-loading-copy="Uploading documents...">
+      <label>
+        <span>Select files</span>
+        <input type="file" name="files" multiple required />
+      </label>
+      <button class="primary-action" type="submit">Upload files</button>
+    </form>
+    <p class="section-copy" style="margin-top: 10px;">Uploaded files become available to the review workflow.</p>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel hero-panel">
+    <h2>Document library</h2>
+    <p class="panel-copy">All company documents are organized by function. These records are available for the agent team to reference during compliance reviews and proposal drafting.</p>
+  </div>
+
+  {% if inventory.library_categories %}
+    {% for category in inventory.library_categories %}
+      <div class="panel">
+        <div class="section-heading">
+          <h2>{{ category.label }}</h2>
+          <span class="section-badge">{{ category.count }}</span>
+        </div>
+        <p class="section-copy">{{ category.description }}</p>
+
+        <div class="requirements-list" style="margin-top: 12px;">
+          {% for doc in category.documents %}
+            <details class="document-card">
+              <summary class="document-summary">
+                <div>
+                  <h3>{{ doc.name }}</h3>
+                  <p class="analysis-copy">{{ doc.relative_path }}</p>
+                </div>
+                <div class="document-meta-pills">
+                  <span>{{ doc.type }}</span>
+                  <span>{{ doc.size_label }}</span>
+                </div>
+              </summary>
+              <div class="document-body">
+                <pre>{{ doc.preview[:2000] }}</pre>
+                {% if doc.preview|length > 2000 %}
+                  <details style="margin-top: 10px;">
+                    <summary class="text-link">Show more</summary>
+                    <pre style="margin-top: 8px;">{{ doc.preview[2000:] }}</pre>
+                  </details>
+                {% endif %}
+
+                {% if doc.usage %}
+                  <p class="section-copy" style="margin-top: 12px;">Used in these reviews:</p>
+                  <div class="run-list" style="margin-top: 6px;">
+                    {% for use in doc.usage %}
+                      <a class="run-link" href="/runs/{{ use.scope }}">
+                        <strong>{{ use.run_id | replace('_', ' ') | title }}</strong>
+                        <small>{{ use.role_label }}</small>
+                      </a>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="panel">
+      <p class="empty-copy">No library documents found under <code>data/library/</code> yet.</p>
+    </div>
+  {% endif %}
+
+  {% if inventory.uploaded_documents %}
+    <div class="panel">
+      <div class="section-heading">
+        <h2>Recently uploaded</h2>
+        <span class="section-badge">{{ inventory.uploaded_documents | length }}</span>
+      </div>
+      <p class="section-copy">Recent uploads are available for ad-hoc review runs.</p>
+      <div class="file-table" style="margin-top: 10px;">
+        {% for doc in inventory.uploaded_documents[:40] %}
+          <div class="file-row">
+            <div class="file-row-main">
+              <h3>{{ doc.name }}</h3>
+              <p class="analysis-copy">{{ doc.relative_path }}</p>
+            </div>
+            <div class="file-row-side">
+              <span>{{ doc.type }}</span>
+              <span>{{ doc.size_label }}</span>
+            </div>
+            <div></div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

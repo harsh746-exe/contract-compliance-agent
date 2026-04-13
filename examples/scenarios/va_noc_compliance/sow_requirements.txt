@@ -1,0 +1,160 @@
+STATEMENT OF WORK
+Network Operations Center (NOC) Managed Services
+Department of Veterans Affairs — Office of Information and Technology
+Solicitation No: 36C10X26R0089
+
+1. BACKGROUND AND PURPOSE
+
+The Department of Veterans Affairs (VA) Office of Information and Technology (OIT) requires comprehensive Network Operations Center (NOC) managed services to support the monitoring, management, and optimization of VA's nationwide health network infrastructure. The VA network supports 1,298 facilities, including 172 VA Medical Centers, 1,113 outpatient clinics, and regional offices serving approximately 9.1 million enrolled Veterans.
+
+VA OIT currently operates a distributed network environment spanning all 50 states, Puerto Rico, Guam, the U.S. Virgin Islands, and the Philippines. The infrastructure includes Cisco-based campus and WAN networks, Palo Alto next-generation firewalls, F5 load balancers, and a hybrid cloud environment connecting VA Enterprise Cloud (VAEC) resources on AWS GovCloud and Microsoft Azure Government.
+
+The purpose of this Statement of Work (SOW) is to define the required outcomes, service levels, operating constraints, staffing expectations, and reporting requirements for a contractor-operated NOC function that supports VA clinical and administrative missions. Network service availability is mission critical and directly affects access to electronic health records, telehealth services, pharmacy systems, and emergency operations.
+
+2. SCOPE OF WORK
+
+The Contractor shall provide 24/7/365 Network Operations Center services including, but not limited to, the following functional areas.
+
+2.1 Network Monitoring and Event Management
+
+The Contractor shall monitor all VA network devices, circuits, and services using VA's enterprise monitoring platform (currently SolarWinds Orion NPM/NCM with migration to ServiceNow ITOM planned for FY2027). Monitoring shall cover:
+- All WAN circuits (MPLS, SD-WAN, and dedicated internet) across 1,298 sites
+- Core and distribution switches at all VA Medical Centers
+- Perimeter and internal firewalls (approximately 2,400 Palo Alto devices)
+- Load balancers and application delivery controllers
+- DNS, DHCP, and NTP infrastructure
+- Wireless LAN controllers and access points (approximately 48,000 APs)
+- VPN concentrators supporting 180,000+ remote users
+
+The Contractor shall tune threshold baselines to reduce false positives while maintaining sensitivity for patient-care-impacting events. Event correlation rules shall be reviewed at least monthly and after all P1/P2 incidents. Monitoring gaps identified by quarterly audits shall be corrected within 10 business days.
+
+2.2 Incident Management
+
+The Contractor shall manage network incidents according to VA's ITIL-aligned incident management process. Every incident shall include severity assignment, business impact statement, affected facilities, timeline of actions, and closure evidence.
+
+Priority 1 (Critical): Complete network outage affecting patient care or multiple facilities. Response time: 15 minutes. Resolution target: 4 hours.
+Example: Core router failure at a VA Medical Center, WAN circuit outage affecting an entire VISN, enterprise DNS failure.
+
+Priority 2 (High): Significant degradation affecting clinical operations at one or more facilities. Response time: 30 minutes. Resolution target: 8 hours.
+Example: Performance degradation on clinical application circuits, partial wireless failure at a Medical Center, VPN capacity issues.
+
+Priority 3 (Medium): Service degradation not directly impacting patient care. Response time: 2 hours. Resolution target: 24 hours.
+Example: Non-clinical application slowness, individual switch failures in non-critical areas, monitoring system alerts requiring investigation.
+
+Priority 4 (Low): Minor issues and service requests. Response time: 4 hours. Resolution target: 72 hours.
+Example: Configuration changes, port activations, documentation updates, non-urgent capacity planning requests.
+
+For P1 and P2 incidents, the Contractor shall host bridge calls, provide status updates every 30 minutes until stabilization, and submit an After Action Report within two business days.
+
+2.3 Change Management Support
+
+The Contractor shall support VA's Change Advisory Board (CAB) process by:
+- Preparing change implementation plans for network modifications
+- Executing approved standard and normal changes during maintenance windows
+- Providing post-change verification and rollback support
+- Maintaining current network documentation in VA's configuration management database (CMDB) within ServiceNow
+
+Emergency changes shall be documented within 24 hours and reviewed at the next CAB meeting. The Contractor shall maintain a monthly Forward Schedule of Changes that includes risk ratings, blackout windows, and downstream service dependencies.
+
+2.4 Performance Reporting and Capacity Planning
+
+The Contractor shall deliver:
+- Daily operational status briefs to the VA NOC Operations Manager
+- Weekly performance dashboards including circuit utilization, incident trends, SLA compliance, and device health metrics
+- Monthly comprehensive reports with executive summary, trend analysis, capacity forecasts, and improvement recommendations
+- Quarterly strategic reviews with VA OIT leadership
+
+Capacity planning analyses shall include 90-day and 12-month forecasts for WAN bandwidth, VPN concurrency, wireless access point density, and firewall session utilization. Recommendations shall identify required procurement lead times and risk if deferred.
+
+2.5 Escalation and Coordination
+
+The Contractor shall maintain relationships and escalation paths with:
+- VA network engineering teams (Tier 3/4 support)
+- Carrier and ISP support organizations (AT&T, Lumen, Verizon)
+- Hardware vendors (Cisco TAC, Palo Alto support, F5 support)
+- VA Cybersecurity Operations Center (CSOC) for security events
+- Regional VISN IT leadership for facility-specific issues
+
+The Contractor shall maintain an up-to-date escalation matrix with named contacts, alternate contacts, and after-hours procedures. The matrix shall be verified monthly.
+
+3. STAFFING REQUIREMENTS
+
+3.1 Key Personnel
+- NOC Manager (Key Personnel): Minimum 10 years network operations experience, 5 years in supervisory role, ITIL v4 Managing Professional, CCNP or equivalent. Must hold active Public Trust clearance.
+- Senior Network Analyst (Key Personnel): Minimum 8 years network engineering experience, CCNP Security or equivalent, experience with Palo Alto NGFW. Must hold active Public Trust clearance.
+
+3.2 General Staffing
+
+The Contractor shall maintain sufficient staffing to provide 24/7/365 coverage with no single point of failure for any shift. Minimum staffing:
+- Day shift (0600-1800 ET): 6 analysts minimum
+- Night shift (1800-0600 ET): 4 analysts minimum
+- Weekend/holiday: 4 analysts minimum per shift
+
+All personnel shall hold or obtain Public Trust clearance within 60 days of contract start. All Tier 2+ personnel shall hold current CCNA or equivalent certification at minimum. The Contractor shall maintain a documented staffing continuity plan that addresses absentee coverage, surge events, and retention risk.
+
+4. SERVICE LEVEL AGREEMENTS
+
+4.1 Availability: NOC operational availability shall be 99.99% measured monthly, excluding planned maintenance approved by VA.
+
+4.2 Incident Response: Response times as defined in Section 2.2.
+
+4.3 First Contact Resolution: The Contractor shall achieve a minimum 65% first contact resolution rate for P3 and P4 incidents.
+
+4.4 Monitoring Coverage: 100% of in-scope devices shall be monitored. New devices shall be added to monitoring within 24 hours of CMDB registration.
+
+4.5 Documentation Accuracy: Network documentation and CMDB records shall maintain 95% accuracy as measured by quarterly audits.
+
+4.6 Reporting Timeliness: Daily, weekly, and monthly reports shall be delivered by the agreed submission deadlines in 95% of reporting periods.
+
+5. SECURITY REQUIREMENTS
+
+5.1 All Contractor personnel shall comply with VA Directive 6500 and VA Handbook 6500 (Information Security Program).
+
+5.2 The Contractor shall comply with FISMA requirements and support VA's Authority to Operate (ATO) processes for NOC tools and systems.
+
+5.3 All Contractor access to VA networks shall be via VA-approved methods (CAG/VPN with PIV authentication).
+
+5.4 The Contractor shall immediately report any suspected security incidents to VA CSOC and the COR.
+
+5.5 The Contractor shall complete annual role-based cybersecurity training and maintain evidence of training completion for all assigned personnel.
+
+6. TRANSITION REQUIREMENTS
+
+6.1 Transition-In
+
+The Contractor shall execute a 90-day transition-in plan including:
+- 30-day knowledge transfer from incumbent contractor
+- 30-day parallel operations (shadow support)
+- 30-day independent operations with incumbent available for consultation
+- Full operational capability no later than Day 91
+
+The transition-in plan shall include a risk register, mitigation owners, readiness criteria for each phase gate, and a communication plan approved by the COR.
+
+6.2 Transition-Out
+
+The Contractor shall provide 120-day transition-out support at the end of the contract period including documentation handoff, knowledge transfer to successor, and parallel operations support. All runbooks, escalation matrices, architecture diagrams, and standard operating procedures shall be delivered in editable format.
+
+7. PERIOD OF PERFORMANCE
+
+Base Year: 12 months from date of award
+Option Year 1: 12 months
+Option Year 2: 12 months
+Option Year 3: 12 months
+Option Year 4: 12 months
+
+8. PLACE OF PERFORMANCE
+
+Primary: Contractor facility within the Continental United States
+Secondary: On-site support at VA facilities in the Washington, DC metropolitan area as needed (estimated 2-3 days per month)
+
+9. GOVERNMENT FURNISHED EQUIPMENT
+
+VA will provide:
+- Access to SolarWinds Orion monitoring platform
+- Access to ServiceNow ITSM platform
+- VPN access for authorized Contractor personnel
+- Access to VA CMDB and knowledge management systems
+
+10. ACCEPTANCE CRITERIA
+
+The Government will evaluate performance monthly using SLA scorecards, incident quality audits, reporting timeliness, and operational review outcomes. Repeated failure to meet critical SLA targets may trigger corrective action plans, increased oversight, or other contractual remedies in accordance with the contract terms and applicable FAR clauses.

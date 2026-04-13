@@ -1,283 +1,216 @@
 {% extends "base.html" %}
 
-{% block sidebar %}
-  <div class="panel panel-quiet">
-    <p class="eyebrow">Run metadata</p>
-    <dl class="info-list" style="margin-top: 0;">
-      <div><dt>Run ID</dt><dd>{{ run.run_id }}</dd></div>
-      <div><dt>Created</dt><dd>{{ run.created_label }}</dd></div>
-      <div><dt>Requirements</dt><dd>{{ run.summary_cards.total_requirements }}</dd></div>
-      <div><dt>Decisions</dt><dd>{{ run.decisions_count }}</dd></div>
-      <div><dt>Planner mode</dt><dd>{{ run.planner_mode }}</dd></div>
-      <div><dt>Workflow</dt><dd>{{ run.meta.workflow or 'compliance_review' }}</dd></div>
-    </dl>
-    <div class="inline-actions" style="margin-top: 14px;">
-      <a class="inline-action secondary-link" href="/runs/{{ run.scope }}/live">Replay</a>
-      <a class="inline-action secondary-link" href="/runs/{{ run.scope }}/workflow">Workflow</a>
-      <a class="inline-action secondary-link" href="{{ download_all_url }}">Download all</a>
-    </div>
-  </div>
-{% endblock %}
-
 {% block content %}
-  <div class="panel requirements-panel">
-    <div class="section-heading">
-      <h2>Compliance decisions</h2>
-      <span class="section-badge">{{ run.requirements | length }}</span>
-    </div>
-    <p class="section-copy">Expand each requirement to inspect reasoning, evidence, and citation checks.</p>
+<div class="workspace">
+    <aside class="ws-sidebar">
+        <section class="panel">
+            <p class="eyebrow">Run metadata</p>
+            <dl class="info-list">
+                <div><dt>Review</dt><dd>{{ run.title }}</dd></div>
+                <div><dt>Date</dt><dd>{{ run.created_label or 'n/a' }}</dd></div>
+                <div><dt>Requirements</dt><dd>{{ run.summary_cards.total_requirements }}</dd></div>
+                <div><dt>Planning steps</dt><dd>{{ run.planning_trace | length }}</dd></div>
+                <div><dt>Planner mode</dt><dd>{% if run.planner_mode == 'llm' %}AI planned{% else %}Fallback{% endif %}</dd></div>
+                <div><dt>Workflow</dt><dd>{{ run.meta.workflow | replace('_', ' ') | lower | capitalize }}</dd></div>
+            </dl>
+        </section>
 
-    <form action="/runs/{{ run.scope }}/flag-review" method="post" style="margin-top: 14px;">
-      <div class="requirements-list">
-        {% for decision in run.requirements %}
-          <details class="requirement-row">
-            <summary class="requirement-summary">
-              <div class="requirement-summary-copy">
-                <p class="req-id">{{ decision.requirement_id }}</p>
-                <h3>{{ decision.requirement_text[:140] }}{% if decision.requirement_text|length > 140 %}...{% endif %}</h3>
-                <p class="analysis-copy">{{ decision.explanation or 'No assessment narrative.' }}</p>
-              </div>
-              <div class="requirement-summary-meta">
-                {% set status_class = 'status-muted' %}
-                {% if decision.label == 'compliant' %}{% set status_class = 'status-good' %}{% endif %}
-                {% if decision.label == 'partial' %}{% set status_class = 'status-warn' %}{% endif %}
-                {% if decision.label == 'not_compliant' %}{% set status_class = 'status-bad' %}{% endif %}
-                <span class="status-pill {{ status_class }}">{{ decision.label | replace('_', ' ') }}</span>
-                <small>Confidence {{ "%.2f" | format(decision.confidence or 0) }}</small>
-              </div>
-            </summary>
-
-            <div class="requirement-body">
-              <div class="requirement-meta">
-                <span>Execution: {{ decision.execution_mode or 'fallback' }}</span>
-                <span>Evidence: {{ decision.evidence_chunks | length }}</span>
-                <span>Review required: {% if decision.review_required or decision.is_review_queue %}Yes{% else %}No{% endif %}</span>
-              </div>
-
-              <div style="margin-bottom: 14px;">
-                <label class="search-field">
-                  <span>Flag this requirement for review</span>
-                  <input type="checkbox" name="requirement_ids" value="{{ decision.requirement_id }}" />
-                </label>
-              </div>
-
-              <div class="requirement-detail-grid">
-                <div>
-                  <p class="detail-label">Requirement</p>
-                  <p class="analysis-copy">{{ decision.requirement_text }}</p>
-                </div>
-                <div>
-                  <p class="detail-label">Citation checks</p>
-                  <p class="analysis-copy">Coverage: {{ "%.0f" | format((decision.citation_coverage or 0) * 100) }}%</p>
-                  <p class="analysis-copy">Status: {{ decision.citation_validation_status or 'unknown' }}</p>
-                  <p class="analysis-copy">Penalty: {{ decision.citation_penalty or 0 }}</p>
-                  {% if decision.invalid_citation_ids %}
-                    <p class="analysis-copy">Invalid IDs: {{ decision.invalid_citation_ids | join(', ') }}</p>
-                  {% endif %}
-                </div>
-              </div>
-
-              {% if decision.suggested_edits %}
-                <div class="improvement-block" style="margin-bottom: 14px;">
-                  <p class="analysis-copy">Suggested edits</p>
-                  <ul>
-                    {% for edit in decision.suggested_edits %}
-                      <li>{{ edit }}</li>
+        <section class="panel">
+            <div class="section-head">
+                <h2>Artifacts</h2>
+                <span class="section-tag section-tag-accent">Downloads</span>
+            </div>
+            <div class="dl-grid">
+                {% if report_download_url %}
+                <a class="dl-item" href="{{ report_download_url }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                    <span>Compliance report</span>
+                </a>
+                {% endif %}
+                {% if matrix_download_url %}
+                <a class="dl-item" href="{{ matrix_download_url }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                    <span>Compliance matrix</span>
+                </a>
+                {% endif %}
+                <a class="dl-item" href="{{ download_all_url }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                    <span>All artifacts</span>
+                </a>
+                {% set shown = namespace(count=0) %}
+                {% for group in run.artifact_groups.groups %}
+                    {% for artifact in group.files %}
+                        {% if shown.count < 5 %}
+                        <a class="dl-item" href="/downloads/{{ run.scope }}/{{ artifact.name }}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span>{{ artifact.label }}</span>
+                        </a>
+                        {% set shown.count = shown.count + 1 %}
+                        {% endif %}
                     {% endfor %}
-                  </ul>
-                </div>
-              {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+    </aside>
 
-              {% if decision.evidence_chunks %}
-                <div class="evidence-grid">
-                  {% for chunk in decision.evidence_chunks %}
-                    <div class="evidence-item">
-                      <div class="evidence-meta">
-                        <span>{{ chunk.source_citation or chunk.evidence_citation or 'Unknown source' }}</span>
-                        <span>Score {{ "%.3f" | format(chunk.retrieval_score or 0) }}</span>
-                      </div>
-                      <p class="analysis-copy">{{ chunk.evidence_text[:320] }}{% if chunk.evidence_text|length > 320 %}...{% endif %}</p>
+    <main class="ws-main">
+        <section class="panel panel-hero">
+            <p class="eyebrow">Review summary</p>
+            <h1>{{ run.title }}</h1>
+            <p class="desc">The agent team analyzed {{ run.requirements | length }} requirements and produced a full decision trace with confidence scores and evidence references.</p>
+            <div class="stats-grid">
+                <div class="stat-card stat-card-good">
+                    <div class="val">{{ compliant_count }}</div>
+                    <div class="label">Requirements met</div>
+                </div>
+                <div class="stat-card stat-card-warn">
+                    <div class="val">{{ partial_count }}</div>
+                    <div class="label">Gaps found</div>
+                </div>
+                <div class="stat-card stat-card-bad">
+                    <div class="val">{{ not_addressed_count }}</div>
+                    <div class="label">Missing</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val">{{ "%.0f" | format((avg_confidence or 0) * 100) }}%</div>
+                    <div class="label">Average confidence</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>Requires attention</h2>
+                <span class="section-tag section-tag-warn">{{ attention_count }} items</span>
+            </div>
+            <p class="desc">These requirements need edits before submission.</p>
+
+            {% if attention_items %}
+                {% for d in attention_items %}
+                {% set status_text = 'Gap' if d.label == 'partial' else 'Missing' %}
+                {% set status_tone = 'section-tag-warn' if d.label == 'partial' else 'section-tag-bad' %}
+                <article class="req-row">
+                    <div class="req-head" onclick="toggleReq(this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleReq(this);}">
+                        <div class="req-left">
+                            <div class="req-id">{{ d.requirement_id }}</div>
+                            <div class="req-title">{{ d.requirement_text }}</div>
+                            <div class="req-expl">{{ d.explanation or 'No rationale provided.' }}</div>
+                        </div>
+                        <div class="req-right">
+                            <span class="section-tag {{ status_tone }}">{{ status_text }}</span>
+                            <div class="req-conf">{{ "%.0f" | format((d.confidence or 0) * 100) }}%</div>
+                            <div class="req-conf-label">Confidence</div>
+                        </div>
                     </div>
-                  {% endfor %}
+                    <div class="req-body">
+                        <div class="req-grid">
+                            <div>
+                                <div class="detail-label">Full requirement</div>
+                                <p class="desc">{{ d.requirement_text }}</p>
+                            </div>
+                            <div>
+                                <div class="detail-label">Evidence</div>
+                                {% if d.evidence_chunks %}
+                                    {% for e in d.evidence_chunks[:6] %}
+                                    <div class="evidence-card">
+                                        <div class="evidence-meta">
+                                            <span>{{ e.source_citation or 'Source note' }}</span>
+                                            <span>Score {{ "%.2f" | format(e.retrieval_score or 0) }}</span>
+                                        </div>
+                                        <p>{{ e.evidence_text }}</p>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <div class="evidence-card">
+                                    <p>No supporting evidence was retrieved for this requirement.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if d.suggested_edits %}
+                        <div class="improve-block">
+                            <strong>Suggested improvement</strong>
+                            <p>{% for edit in d.suggested_edits %}{{ loop.index }}. {{ edit }}{% if not loop.last %} {% endif %}{% endfor %}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            {% else %}
+            <p class="desc" style="margin-bottom:0;">No open requirement gaps were found in this review.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>Requirements met</h2>
+                <span class="section-tag section-tag-good">{{ compliant_count }} items</span>
+            </div>
+            <p class="desc">These requirements were assessed as fully met.</p>
+
+            {% if compliant_items %}
+                {% for d in compliant_items %}
+                <article class="req-row">
+                    <div class="req-head" onclick="toggleReq(this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleReq(this);}">
+                        <div class="req-left">
+                            <div class="req-id">{{ d.requirement_id }}</div>
+                            <div class="req-title">{{ d.requirement_text }}</div>
+                            <div class="req-expl">{{ d.explanation or 'Requirement is fully addressed.' }}</div>
+                        </div>
+                        <div class="req-right">
+                            <span class="section-tag section-tag-good">Met</span>
+                            <div class="req-conf">{{ "%.0f" | format((d.confidence or 0) * 100) }}%</div>
+                            <div class="req-conf-label">Confidence</div>
+                        </div>
+                    </div>
+                    <div class="req-body">
+                        <div class="detail-label">Full requirement</div>
+                        <p class="desc" style="margin-bottom:0;">{{ d.requirement_text }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            {% else %}
+            <p class="desc" style="margin-bottom:0;">No requirements were marked as met.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>How the agent team worked</h2>
+                <span class="section-tag section-tag-accent">{{ run.planning_trace | length }} steps</span>
+            </div>
+            <p class="desc">Each step records what the orchestrator decided and why.</p>
+
+            {% if run.planning_trace %}
+                {% for step in run.planning_trace %}
+                <div class="trace-step">
+                    <div class="trace-num">{{ step.step }}</div>
+                    <div class="trace-content">
+                        <div class="trace-action">
+                            {{ step.step_label or (step.action | replace('dispatch_', '') | replace('_', ' ') | capitalize) }}
+                            <span class="trace-badge">{% if step.planner_mode == 'llm' %}AI decided{% else %}Fallback{% endif %}</span>
+                        </div>
+                        <div class="trace-reason">{{ step.reasoning }}</div>
+                        <div class="trace-meta">
+                            {% if step.confidence_after and step.confidence_after.mean is not none %}
+                            Confidence {{ "%.2f" | format(step.confidence_after.min) }}-{{ "%.2f" | format(step.confidence_after.max) }} (mean {{ "%.2f" | format(step.confidence_after.mean) }})
+                            {% else %}
+                            No confidence update logged for this step.
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-              {% endif %}
-            </div>
-          </details>
-        {% endfor %}
-      </div>
+                {% endfor %}
+            {% else %}
+            <p class="desc" style="margin-bottom:0;">No planning trace was recorded for this run.</p>
+            {% endif %}
+        </section>
+    </main>
+</div>
 
-      <div class="inline-actions" style="margin-top: 16px;">
-        <button type="submit" class="primary-action">Flag selected for review</button>
-      </div>
-    </form>
-  </div>
-
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Planning trace</h2>
-      <span class="section-badge">{{ run.planning_trace | length }} steps</span>
-    </div>
-    <div class="run-list">
-      {% for step in run.planning_trace %}
-        <article class="card">
-          <div class="card-meta">
-            <small>Step {{ step.step }}</small>
-            <span class="status-pill status-muted">{{ step.planner_mode | upper }}</span>
-          </div>
-          <h3>{{ step.step_label }}</h3>
-          <p class="analysis-copy" style="margin-top: 8px;">{{ step.reasoning }}</p>
-          {% if step.confidence_after and step.confidence_after.min is not none %}
-            <p class="analysis-copy" style="margin-top: 8px;">Confidence {{ "%.2f"|format(step.confidence_after.min) }}-{{ "%.2f"|format(step.confidence_after.max) }} (mean {{ "%.2f"|format(step.confidence_after.mean) }})</p>
-          {% endif %}
-          {% if step.target_requirements %}
-            <p class="analysis-copy" style="margin-top: 6px;">Targeted: {{ step.target_requirements|join(', ') }}</p>
-          {% endif %}
-        </article>
-      {% endfor %}
-    </div>
-  </div>
-
-  {% if run.evaluation %}
-    <div class="panel">
-      <div class="section-heading">
-        <h2>Evaluation metrics</h2>
-        <span class="section-badge">Quality</span>
-      </div>
-      <div class="stats-grid">
-        <div class="metric metric-accent">
-          <span>Accuracy</span>
-          <strong>{% if run.evaluation.accuracy is not none %}{{ "%.3f"|format(run.evaluation.accuracy) }}{% else %}n/a{% endif %}</strong>
-        </div>
-        <div class="metric">
-          <span>Kappa</span>
-          <strong>{% if run.evaluation.cohen_kappa is not none %}{{ "%.3f"|format(run.evaluation.cohen_kappa) }}{% else %}n/a{% endif %}</strong>
-        </div>
-        <div class="metric">
-          <span>ECE</span>
-          <strong>{% if run.evaluation.calibration and run.evaluation.calibration.expected_calibration_error is not none %}{{ "%.3f"|format(run.evaluation.calibration.expected_calibration_error) }}{% else %}n/a{% endif %}</strong>
-        </div>
-      </div>
-
-      {% if run.evaluation.per_label_metrics %}
-        <h3 style="margin: 18px 0 10px;">Per-label precision/recall/F1</h3>
-        <table>
-          <thead>
-            <tr><th>Label</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
-          </thead>
-          <tbody>
-            {% for label, metrics in run.evaluation.per_label_metrics.items() %}
-              <tr>
-                <td>{{ label }}</td>
-                <td>{{ "%.3f"|format(metrics.precision) }}</td>
-                <td>{{ "%.3f"|format(metrics.recall) }}</td>
-                <td>{{ "%.3f"|format(metrics.f1) }}</td>
-                <td>{{ metrics.support }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% endif %}
-
-      {% if confusion.labels %}
-        <h3 style="margin: 18px 0 10px;">Confusion matrix</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Actual / Pred</th>
-              {% for label in confusion.labels %}<th>{{ label }}</th>{% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in confusion.rows %}
-              <tr>
-                <td>{{ row.label }}</td>
-                {% for value in row.cells %}<td>{{ value }}</td>{% endfor %}
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% endif %}
-    </div>
-  {% endif %}
-
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Artifacts</h2>
-      <span class="section-badge">{{ run.artifact_groups.groups | length }} groups</span>
-    </div>
-    <div class="requirements-list">
-      {% for group in run.artifact_groups.groups %}
-        <details class="document-card" {% if loop.first %}open{% endif %}>
-          <summary class="document-summary">
-            <h3>{{ group.label }}</h3>
-            <span class="section-badge">{{ group.files | length }}</span>
-          </summary>
-          <div class="document-body">
-            <div class="run-list">
-              {% for artifact in group.files %}
-                <details class="document-card" style="margin-top: 8px;">
-                  <summary class="document-summary">
-                    <h3>{{ artifact.label }}</h3>
-                    <a class="inline-action secondary-link" href="/downloads/{{ run.scope }}/{{ artifact.name }}">Download</a>
-                  </summary>
-                  <div class="document-body">
-                    {% if artifact.preview %}
-                      <pre>{{ artifact.preview }}</pre>
-                    {% else %}
-                      <p class="empty-copy">Preview unavailable for this file type.</p>
-                    {% endif %}
-                  </div>
-                </details>
-              {% endfor %}
-            </div>
-          </div>
-        </details>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="section-heading">
-      <h2>Stakeholder actions</h2>
-      <span class="section-badge">Collaboration</span>
-    </div>
-    <div class="inline-actions">
-      {% if report_download_url %}
-        <a class="inline-action secondary-link" href="{{ report_download_url }}">Download full report</a>
-      {% else %}
-        <span class="status-pill status-muted">Full report unavailable</span>
-      {% endif %}
-      {% if matrix_download_url %}
-        <a class="inline-action secondary-link" href="{{ matrix_download_url }}">Download compliance matrix</a>
-      {% else %}
-        <span class="status-pill status-muted">Compliance matrix unavailable</span>
-      {% endif %}
-    </div>
-
-    <form action="/runs/{{ run.scope }}/notes" method="post" class="stacked-form" style="margin-top: 16px;">
-      <label>
-        <span>Add note</span>
-        <textarea name="note" rows="3" placeholder="Add context, concerns, or follow-up actions."></textarea>
-      </label>
-      <button type="submit" class="primary-action">Save note</button>
-    </form>
-
-    {% if stakeholder_notes %}
-      <h3 style="margin: 18px 0 8px;">Recent notes</h3>
-      <div class="run-list">
-        {% for item in stakeholder_notes|reverse %}
-          <div class="run-link" style="pointer-events: none; cursor: default;"><small><strong>{{ item.timestamp }}</strong> - {{ item.note }}</small></div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% if review_flags %}
-      <h3 style="margin: 18px 0 8px;">Review flags</h3>
-      <div class="run-list">
-        {% for flag in review_flags|reverse %}
-          <div class="run-link" style="pointer-events: none; cursor: default;"><small><strong>{{ flag.timestamp }}</strong> - {{ flag.requirement_ids | join(', ') }}</small></div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </div>
+<script>
+function toggleReq(el){
+    el.parentElement.classList.toggle('open');
+}
+</script>
 {% endblock %}

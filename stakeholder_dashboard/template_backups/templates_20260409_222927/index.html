@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel">
+    <a href="/run-upload" class="primary-action primary-action-block">Start new review</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% set critical = notifications | selectattr("severity", "equalto", "critical") | list %}
+  {% if critical %}
+    <div class="alert-banner">
+      <div class="alert-banner-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="alert-banner-content">
+        <strong class="alert-banner-title">{{ critical | length }} item{{ 's' if critical | length > 1 else '' }} requiring attention</strong>
+        <div class="alert-banner-items">
+          {% for n in critical %}
+            <div class="alert-banner-item">
+              <span>{{ n.title }}</span>
+              {% if n.action_url %}
+                <a href="{{ n.action_url }}">{{ n.action_label }}</a>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="panel hero-panel section-spacer-lg">
+    <p class="eyebrow">Contracts overview</p>
+    <div class="stats-grid">
+      <div class="hero-stat hero-stat-accent">
+        <span>Contracts tracked</span>
+        <strong>{{ pipeline.total }}</strong>
+      </div>
+      <div class="hero-stat">
+        <span>Pipeline value</span>
+        <strong>${{ pipeline.value_millions }}M</strong>
+      </div>
+      <div class="hero-stat">
+        <span>In AI review</span>
+        <strong>{{ pipeline.by_stage.review }}</strong>
+      </div>
+      <div class="hero-stat">
+        <span>Active delivery</span>
+        <strong>{{ pipeline.by_stage.active }}</strong>
+      </div>
+    </div>
+  </div>
+
+  {% for stage in stages %}
+    {% set stage_contracts = contracts | selectattr("stage", "equalto", stage.key) | list %}
+    {% if stage_contracts %}
+      <div class="panel">
+        <div class="section-heading">
+          <h2>{{ stage.label }}</h2>
+          <span class="section-badge">{{ stage_contracts | length }}</span>
+        </div>
+        <p class="section-copy">{{ stage_explanations.get(stage.key, stage.description) }}</p>
+
+        <div class="card-grid" style="margin-top: 18px;">
+          {% for c in stage_contracts %}
+            <div class="card">
+              {% if c._run %}
+                {% set not_compliant = c._run.not_compliant if c._run.not_compliant is defined else 0 %}
+                {% set total = c._run.compliant + c._run.partial + c._run.not_addressed + not_compliant %}
+                {% if total > 0 %}
+                  <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-bottom: 12px;">
+                    <div style="flex: {{ c._run.compliant }}; background: var(--good);"></div>
+                    <div style="flex: {{ c._run.partial }}; background: var(--warn);"></div>
+                    <div style="flex: {{ c._run.not_addressed + not_compliant }}; background: var(--bad);"></div>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <div class="card-meta">
+                <small>{{ c.agency }}</small>
+                <small style="color: var(--good); font-weight: 600;">{{ c.value }}</small>
+              </div>
+              <h3>{{ c.title }}</h3>
+              <p class="analysis-copy">{{ c.summary }}</p>
+
+              {% if c.due_date %}
+                <p class="section-copy" style="color: var(--warn); margin-top: 8px;">Due {{ c.due_date }}</p>
+              {% endif %}
+
+              {% if c._run %}
+                {% set not_compliant = c._run.not_compliant if c._run.not_compliant is defined else 0 %}
+                <div style="margin: 12px 0; padding: 12px; background: var(--accent-soft); border-radius: var(--radius-sm);">
+                  <p class="eyebrow" style="margin-bottom: 6px;">AI review results</p>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <span class="status-pill status-good">{{ c._run.compliant }} met</span>
+                    <span class="status-pill status-warn">{{ c._run.partial }} gaps</span>
+                    {% if c._run.not_addressed + not_compliant > 0 %}
+                      <span class="status-pill status-bad">{{ c._run.not_addressed + not_compliant }} missing</span>
+                    {% endif %}
+                  </div>
+                  <small style="color: var(--muted);">{{ c._run.planning_steps }} analysis steps {% if c._run.planner_mode == 'llm' %}&middot; AI planned{% else %}&middot; rules fallback{% endif %} &middot; confidence {% if c._run.confidence_min is not none %}{{ '%.2f'|format(c._run.confidence_min) }}-{{ '%.2f'|format(c._run.confidence_max) }}{% else %}n/a{% endif %}</small>
+                </div>
+              {% endif %}
+
+              <div class="inline-actions" style="margin-top: 12px;">
+                {% if c.run_id %}
+                  <a href="/runs/{{ c.run_id }}" class="inline-action">See findings</a>
+                  <a href="/runs/{{ c.run_id }}/workflow" class="inline-action secondary-link">Agent workflow</a>
+                {% endif %}
+                {% if c.stage == 'solicitation' %}
+                  <a href="/run-upload" class="inline-action">Start review</a>
+                {% endif %}
+                <a href="/contracts/{{ c.id }}" class="inline-action secondary-link">Contract details</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+{% endblock %}

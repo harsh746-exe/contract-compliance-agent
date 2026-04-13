@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Run setup</p>
+    <p class="section-copy">Upload source and response documents, optionally include context files, and choose workflow mode.</p>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Start a new review</h2>
+      <span class="section-badge">Submit</span>
+    </div>
+    <form action="/run-upload" method="post" enctype="multipart/form-data" class="stacked-form" data-loading-copy="Starting review...">
+      <label>
+        <span>Policy / SOW / Requirements Document</span>
+        <input type="file" name="source_document" required />
+      </label>
+      <label>
+        <span>Proposal / Response Document</span>
+        <input type="file" name="response_document" required />
+      </label>
+      <label>
+        <span>Prior Contracts, Amendments, Glossary</span>
+        <input type="file" name="context_documents" multiple />
+      </label>
+      <label>
+        <span>Workflow Type</span>
+        <select name="workflow_type">
+          <option value="compliance_review">Compliance Review</option>
+          <option value="proposal_drafting">Proposal Drafting</option>
+        </select>
+      </label>
+      <label>
+        <span>Run Name (optional)</span>
+        <input type="text" name="run_name" placeholder="Auto-generated if blank" />
+      </label>
+      <button class="primary-action" type="submit">Start review</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Uploaded documents</h2>
+      <span class="section-badge">{{ uploaded_documents | length }}</span>
+    </div>
+    {% if uploaded_documents %}
+      <div class="file-table">
+        {% for doc in uploaded_documents %}
+          <div class="file-row">
+            <div class="file-row-main">
+              <h3>{{ doc.name }}</h3>
+              <p class="analysis-copy">{{ doc.relative_path }}</p>
+            </div>
+            <div class="file-row-side">
+              <span>{{ doc.type }}</span>
+              <span>{{ doc.size_label }}</span>
+            </div>
+            <div></div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-copy">No uploaded documents available yet.</p>
+    {% endif %}
+  </div>
+{% endblock %}

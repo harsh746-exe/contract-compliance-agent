@@ -1,17 +1,15 @@
-"""Demo script for the Compliance Agent system."""
+"""Demo script for the MCP compliance agent system."""
 
 import argparse
 import asyncio
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import config
-from compliance_agent.agentic import ApprovalDecision, DocumentInput, WorkflowGoal
 from compliance_agent.scenarios import (
     extract_linear_inputs,
     find_results_json,
     load_scenario,
-    materialize_agentic_artifacts,
     scenario_ground_truth_path,
     scenario_output_dir,
 )
@@ -24,17 +22,21 @@ console = Console()
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the CLI parser for linear and agentic runs."""
+    """Build the CLI parser for MCP runs."""
     parser = argparse.ArgumentParser(description="Contract/Policy Compliance Agent Demo")
-    parser.add_argument("--mode", choices=["mcp", "linear", "agentic"], default="mcp", help="Workflow mode to run (default: mcp)")
-    parser.add_argument("--goal", choices=["compliance_review", "draft_proposal", "full_review"], help="High-level workflow goal for agentic mode")
+    parser.add_argument(
+        "--goal",
+        choices=["compliance_review", "draft_proposal", "full_review"],
+        help="High-level workflow goal.",
+    )
     parser.add_argument("--policy", help="Path to policy/contract/source document")
     parser.add_argument("--response", help="Path to response/proposal document")
     parser.add_argument("--glossary", help="Optional path to glossary/definitions document")
     parser.add_argument("--context", action="append", default=[], help="Optional prior-context document path (repeatable)")
     parser.add_argument("--output-dir", help="Output directory")
     parser.add_argument("--run-id", help="Optional run ID for tracking")
-    parser.add_argument("--resume-run-id", help="Resume a paused agentic workflow by run ID")
+    # Backward-compatible flag used by existing demo scripts; current CLI always runs MCP mode.
+    parser.add_argument("--mode", default="mcp", help=argparse.SUPPRESS)
     parser.add_argument("--scenario-dir", help="Path to a committed demo scenario directory")
     parser.add_argument("--evaluate-only", action="store_true", help="Evaluate an existing scenario run without re-running the workflow")
     return parser
@@ -47,47 +49,6 @@ def _validate_path(path_str: str, label: str) -> Path:
     return path
 
 
-def _build_goal(goal_name: str) -> WorkflowGoal:
-    goal_name = goal_name or "compliance_review"
-    if goal_name == "draft_proposal":
-        return WorkflowGoal(
-            goal_type=goal_name,
-            description="Run compliance review, historical comparison, and bounded drafting support.",
-            draft_requested=True,
-            compare_requested=True,
-        )
-    if goal_name == "full_review":
-        return WorkflowGoal(
-            goal_type=goal_name,
-            description="Run the full bounded workflow including compliance review, comparison, and final handoff checks.",
-            draft_requested=True,
-            compare_requested=True,
-        )
-    return WorkflowGoal(
-        goal_type=goal_name,
-        description="Run compliance review over the primary source and response documents.",
-        draft_requested=False,
-        compare_requested=True,
-    )
-
-
-def _interactive_approval_handler(request) -> ApprovalDecision:
-    console.print(f"\n[bold yellow]Approval required:[/bold yellow] {request.reason}")
-    unresolved = request.context.get("unresolved_items", [])
-    if unresolved:
-        for item in unresolved[:8]:
-            console.print(f"  - {item}")
-    answer = console.input("Approve workflow to continue? [y/N]: ").strip().lower()
-    approved = answer in {"y", "yes"}
-    rationale = "Approved from CLI prompt." if approved else "Denied from CLI prompt."
-    return ApprovalDecision(
-        request_id=request.request_id,
-        approved=approved,
-        rationale=rationale,
-        reviewer="cli_user",
-    )
-
-
 def resolve_demo_args(args):
     """Apply scenario defaults and normalize CLI arguments."""
     scenario = None
@@ -98,7 +59,6 @@ def resolve_demo_args(args):
         scenario = load_scenario(scenario_dir)
         linear_inputs = extract_linear_inputs(scenario.documents)
 
-        args.mode = args.mode or "mcp"
         args.goal = args.goal or scenario.goal
         args.run_id = args.run_id or scenario.effective_output_subdir
         args.output_dir = str(scenario_output_dir(scenario, args.output_dir))
@@ -108,46 +68,12 @@ def resolve_demo_args(args):
         if not args.context:
             args.context = linear_inputs["context"]
     else:
-        args.mode = args.mode or "mcp"
         args.goal = args.goal or "compliance_review"
-        if args.mode == "linear":
-            args.output_dir = args.output_dir or "output/results"
-        elif args.mode == "mcp":
-            args.output_dir = args.output_dir or str(config.DEMO_CASES_DIR)
+        args.output_dir = args.output_dir or str(config.DEMO_CASES_DIR)
 
     args._scenario = scenario
     args._scenario_dir = scenario_dir
     return args
-
-
-def _new_linear_agent():
-    try:
-        from compliance_agent import ComplianceAgent
-        return ComplianceAgent()
-    except RuntimeError:
-        raise
-    except Exception as exc:
-        message = str(exc).lower()
-        if "langgraph" in message or "langchain" in message or isinstance(exc, ImportError):
-            raise RuntimeError(
-                "ComplianceAgent orchestration requires compatible langgraph/langchain dependencies."
-            ) from exc
-        raise
-
-
-def _new_agentic_engine():
-    try:
-        from compliance_agent import AgenticWorkflowEngine
-        return AgenticWorkflowEngine()
-    except RuntimeError:
-        raise
-    except Exception as exc:
-        message = str(exc).lower()
-        if "langgraph" in message or "langchain" in message or isinstance(exc, ImportError):
-            raise RuntimeError(
-                "Agentic workflow engine requires compatible langgraph/langchain dependencies."
-            ) from exc
-        raise
 
 
 def _mcp_documents_from_args(args) -> list[dict]:
@@ -164,7 +90,7 @@ def _mcp_documents_from_args(args) -> list[dict]:
         ]
 
     if not args.policy or not args.response:
-        raise ValueError("--policy and --response are required in mcp mode.")
+        raise ValueError("--policy and --response are required.")
 
     policy_path = _validate_path(args.policy, "Policy")
     response_path = _validate_path(args.response, "Response")
@@ -235,114 +161,6 @@ def run_mcp_mode(args, console: Console) -> dict:
     return result
 
 
-def run_linear_mode(args, console: Console, agent: Optional[Any] = None) -> dict:
-    """Execute the existing linear compliance flow."""
-    if not args.policy or not args.response:
-        raise ValueError("--policy and --response are required in linear mode.")
-
-    policy_path = _validate_path(args.policy, "Policy")
-    response_path = _validate_path(args.response, "Response")
-    glossary_path = _validate_path(args.glossary, "Glossary") if args.glossary else None
-    context_paths = [str(_validate_path(path, "Context")) for path in args.context]
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    console.print("[bold blue]Initializing Compliance Agent...[/bold blue]")
-    agent = agent or _new_linear_agent()
-
-    console.print("[bold blue]Processing documents...[/bold blue]")
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-        task = progress.add_task("Analyzing compliance...", total=None)
-        results = agent.process(
-            policy_path=str(policy_path),
-            response_path=str(response_path),
-            glossary_path=str(glossary_path) if glossary_path else None,
-            context_paths=context_paths,
-            run_id=args.run_id,
-        )
-        progress.update(task, completed=True)
-
-    run_id = results["run_id"]
-    csv_path = output_dir / f"{run_id}_matrix.csv"
-    json_path = output_dir / f"{run_id}_results.json"
-    report_path = output_dir / f"{run_id}_report.md"
-
-    agent.export_matrix(str(csv_path))
-    agent.export_json(str(json_path))
-    agent.export_report(str(report_path))
-
-    results["artifacts"] = {
-        "matrix": str(csv_path),
-        "results_json": str(json_path),
-        "report": str(report_path),
-    }
-    return results
-
-
-def run_agentic_mode(
-    args,
-    console: Console,
-    engine: Optional[Any] = None,
-    approval_handler=None,
-):
-    """Execute or resume the bounded agentic workflow."""
-    engine = engine or _new_agentic_engine()
-    goal = _build_goal(args.goal)
-    approval_handler = approval_handler or _interactive_approval_handler
-
-    if args.resume_run_id:
-        result = engine.run(
-            goal=goal,
-            documents=[],
-            approval_handler=approval_handler,
-            run_id=args.resume_run_id,
-            resume=True,
-        )
-        if args.output_dir:
-            result.artifacts = materialize_agentic_artifacts(result.artifacts, Path(args.output_dir))
-        return result
-
-    if getattr(args, "_scenario", None):
-        documents = args._scenario.documents
-    else:
-        if not args.policy or not args.response:
-            raise ValueError("--policy and --response are required for a new agentic workflow run.")
-
-        policy_path = _validate_path(args.policy, "Policy")
-        response_path = _validate_path(args.response, "Response")
-        documents = [
-            DocumentInput(path=str(policy_path), role="solicitation_or_requirement_source"),
-            DocumentInput(path=str(response_path), role="response_or_proposal"),
-        ]
-
-        if args.glossary:
-            documents.append(DocumentInput(
-                path=str(_validate_path(args.glossary, "Glossary")),
-                role="glossary",
-            ))
-
-        for context_path in args.context:
-            documents.append(DocumentInput(
-                path=str(_validate_path(context_path, "Context")),
-                role="prior_contract",
-            ))
-
-    console.print("[bold blue]Initializing Agentic Workflow Engine...[/bold blue]")
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-        task = progress.add_task("Running bounded agentic workflow...", total=None)
-        result = engine.run(
-            goal=goal,
-            documents=documents,
-            approval_handler=approval_handler,
-            run_id=args.run_id,
-        )
-        progress.update(task, completed=True)
-    if args.output_dir:
-        result.artifacts = materialize_agentic_artifacts(result.artifacts, Path(args.output_dir))
-    return result
-
-
 def run_scenario_evaluation(args, console: Console):
     """Evaluate a scenario's existing results and write stable metrics artifacts."""
     scenario = getattr(args, "_scenario", None)
@@ -380,68 +198,6 @@ def maybe_run_post_scenario_evaluation(args, console: Console):
         return None
 
 
-def render_linear_summary(results: dict, console: Console) -> None:
-    """Render the linear workflow summary."""
-    console.print("\n[bold green]Processing Complete![/bold green]\n")
-    summary_table = Table(title="Compliance Summary")
-    summary_table.add_column("Metric", style="cyan")
-    summary_table.add_column("Value", style="magenta")
-
-    requirements = results["requirements"]
-    decisions = results["decisions"]
-    total_reqs = len(requirements)
-    compliant = sum(1 for d in decisions if d.label == "compliant")
-    partial = sum(1 for d in decisions if d.label == "partial")
-    not_compliant = sum(1 for d in decisions if d.label == "not_compliant")
-    not_addressed = sum(1 for d in decisions if d.label == "not_addressed")
-    avg_confidence = sum(d.confidence for d in decisions) / len(decisions) if decisions else 0.0
-
-    summary_table.add_row("Total Requirements", str(total_reqs))
-    summary_table.add_row("Compliant", f"{compliant} ({compliant/total_reqs*100:.1f}%)" if total_reqs > 0 else "0")
-    summary_table.add_row("Partial Compliance", f"{partial} ({partial/total_reqs*100:.1f}%)" if total_reqs > 0 else "0")
-    summary_table.add_row("Not Compliant", f"{not_compliant} ({not_compliant/total_reqs*100:.1f}%)" if total_reqs > 0 else "0")
-    summary_table.add_row("Not Addressed", f"{not_addressed} ({not_addressed/total_reqs*100:.1f}%)" if total_reqs > 0 else "0")
-    summary_table.add_row("Average Confidence", f"{avg_confidence:.2f}")
-    summary_table.add_row("Items for Review", str(len(results["review_queue"])))
-    console.print(summary_table)
-
-    console.print("\n[bold blue]Artifacts[/bold blue]")
-    for label, path in results.get("artifacts", {}).items():
-        console.print(f"  - {label}: {path}")
-
-
-def render_agentic_summary(result, console: Console) -> None:
-    """Render the agentic workflow summary."""
-    console.print("\n[bold green]Agentic Workflow Result[/bold green]\n")
-    summary_table = Table(title="Agentic Workflow Summary")
-    summary_table.add_column("Metric", style="cyan")
-    summary_table.add_column("Value", style="magenta")
-    summary_table.add_row("Run ID", result.run_id)
-    summary_table.add_row("Status", result.status)
-    summary_table.add_row("Goal", result.goal.goal_type)
-    summary_table.add_row("Tasks Executed", str(len(result.tasks)))
-    summary_table.add_row("Review Queue", str(len(result.review_queue)))
-    summary_table.add_row("Approvals Raised", str(len(result.approvals)))
-    console.print(summary_table)
-
-    if result.document_manifest:
-        manifest = result.document_manifest
-        console.print("[bold blue]Document Manifest[/bold blue]")
-        console.print(f"  - source: {manifest.primary_source.path if manifest.primary_source else 'missing'}")
-        console.print(f"  - response: {manifest.primary_response.path if manifest.primary_response else 'missing'}")
-        console.print(f"  - glossary: {manifest.glossary.path if manifest.glossary else 'none'}")
-        console.print(f"  - prior context count: {len(manifest.prior_context)}")
-
-    if result.review_queue:
-        console.print("[bold yellow]Items requiring review[/bold yellow]")
-        for item in result.review_queue[:8]:
-            console.print(f"  - {item}")
-
-    console.print("\n[bold blue]Artifacts[/bold blue]")
-    for label, path in result.artifacts.items():
-        console.print(f"  - {label}: {path}")
-
-
 def render_mcp_summary(result: dict, console: Console) -> None:
     """Render a concise MCP run completion summary."""
     outputs = result.get("outputs", {})
@@ -473,19 +229,6 @@ def render_mcp_summary(result: dict, console: Console) -> None:
         "Artifacts:        "
         + (", ".join(artifact_names) if artifact_names else "(none)")
     )
-
-
-def _render_runtime_error(mode: str, exc: RuntimeError, console: Console) -> None:
-    text = str(exc)
-    if "langgraph" in text.lower():
-        if mode == "linear":
-            console.print("Linear mode requires langgraph. Install with: pip install langgraph")
-        elif mode == "agentic":
-            console.print("Agentic mode requires langgraph. Install with: pip install langgraph")
-        else:
-            console.print(f"{mode.title()} mode failed: {text}")
-        return
-    console.print(f"{mode.title()} mode failed: {text}")
 
 
 def render_evaluation_summary(evaluation_result: dict, console: Console) -> None:
@@ -522,32 +265,8 @@ def main():
         render_evaluation_summary(evaluation_result, console)
         return
 
-    if args.mode == "mcp":
-        result = run_mcp_mode(args, console)
-        render_mcp_summary(result, console)
-        evaluation_result = maybe_run_post_scenario_evaluation(args, console)
-        if evaluation_result:
-            render_evaluation_summary(evaluation_result, console)
-        return
-
-    if args.mode == "linear":
-        try:
-            results = run_linear_mode(args, console)
-        except RuntimeError as exc:
-            _render_runtime_error("linear", exc, console)
-            return
-        render_linear_summary(results, console)
-        evaluation_result = maybe_run_post_scenario_evaluation(args, console)
-        if evaluation_result:
-            render_evaluation_summary(evaluation_result, console)
-        return
-
-    try:
-        result = run_agentic_mode(args, console)
-    except RuntimeError as exc:
-        _render_runtime_error("agentic", exc, console)
-        return
-    render_agentic_summary(result, console)
+    result = run_mcp_mode(args, console)
+    render_mcp_summary(result, console)
     evaluation_result = maybe_run_post_scenario_evaluation(args, console)
     if evaluation_result:
         render_evaluation_summary(evaluation_result, console)

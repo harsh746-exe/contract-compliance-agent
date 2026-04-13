@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title }}</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script defer src="/static/app.js?v=20260409d"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="header-copy">
+          <h1>{{ hero_title }}</h1>
+        </div>
+        <nav class="top-nav">
+          <a href="/" class="nav-link {% if active_page == 'contracts' %}is-active{% endif %}">Contracts</a>
+          <a href="/reviews" class="nav-link {% if active_page == 'reviews' %}is-active{% endif %}">Reviews</a>
+          <a href="/library" class="nav-link {% if active_page == 'library' %}is-active{% endif %}">Library</a>
+          <a href="/activity" class="nav-link {% if active_page == 'activity' %}is-active{% endif %}">Activity</a>
+          <a href="/agents" class="nav-link {% if active_page == 'agents' %}is-active{% endif %}">Agents</a>
+        </nav>
+      </header>
+
+      <div class="workspace-grid">
+        <aside class="sidebar">
+          {% block sidebar %}
+            <div class="panel panel-quiet">
+              <p class="eyebrow">Workspace snapshot</p>
+              <dl class="info-list info-list-tight">
+                <div><dt>Reviews tracked</dt><dd>{{ system_snapshot.case_count }}</dd></div>
+                <div><dt>Library docs</dt><dd>{{ system_snapshot.document_count }}</dd></div>
+                <div><dt>Activity events</dt><dd>{{ system_snapshot.activity_count }}</dd></div>
+                <div><dt>Agent skills</dt><dd>{{ system_snapshot.skill_count }}</dd></div>
+              </dl>
+            </div>
+            <div class="panel">
+              <a href="/run-upload" class="primary-action primary-action-block">Start new review</a>
+            </div>
+          {% endblock %}
+
+          <div class="sidebar-utilities">
+            <div class="panel panel-quiet sidebar-notification-shell" id="notification-shell" role="region" aria-labelledby="notification-shell-label">
+              <div class="sidebar-utility-head">
+                <p class="eyebrow" id="notification-shell-label">Notifications</p>
+              </div>
+              <button type="button" class="notification-trigger notification-trigger-sidebar" id="notification-trigger" onclick="toggleNotifications(event)" aria-label="Toggle notifications panel" aria-expanded="false" aria-controls="notification-panel">
+                <span class="notification-trigger-copy">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  <span>View alerts</span>
+                </span>
+                <span class="notification-trigger-meta">
+                  {% if notification_count > 0 %}
+                    <span class="notification-trigger-badge {% if critical_count > 0 %}critical{% endif %}">
+                      {{ notification_count }} open
+                    </span>
+                  {% else %}
+                    <span class="notification-trigger-badge">All clear</span>
+                  {% endif %}
+                  <svg class="notification-trigger-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+
+              <div id="notification-panel" class="notification-panel" role="list" aria-label="Notification alerts">
+                <div class="notification-panel-header">
+                  <strong>Notifications</strong>
+                  <small>{{ notification_count }} alerts</small>
+                </div>
+
+                {% if not notifications %}
+                  <div class="notification-empty">All clear. No alerts right now.</div>
+                {% endif %}
+
+                {% for n in notifications %}
+                  <div class="notification-item notification-item-{{ n.severity }}" role="listitem">
+                    <div class="notification-dot notification-dot-{{ n.severity }}"></div>
+                    <div class="notification-body">
+                      <div class="notification-title">{{ n.title }}</div>
+                      <div class="notification-message">{{ n.message }}</div>
+                      {% if n.action_url %}
+                        <a href="{{ n.action_url }}" class="notification-action">{{ n.action_label }}</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="panel panel-quiet sidebar-chat-shell" id="chat-shell" role="region" aria-labelledby="chat-shell-label">
+              <div class="sidebar-utility-head">
+                <p class="eyebrow" id="chat-shell-label">Assistant chat</p>
+              </div>
+              <div id="chat-window" class="chat-window">
+                <div class="chat-window-header">
+                  <div>
+                    <strong>Assistant</strong>
+                    <small>Ask about contracts, reviews, or deadlines</small>
+                  </div>
+                  <button onclick="toggleChat()" class="chat-close" aria-label="Close">&times;</button>
+                </div>
+
+                <div id="chat-messages" class="chat-window-messages" aria-live="polite">
+                  <div class="chat-bubble assistant">
+                    How can I help? I can answer questions about your contracts, compliance reviews, deadlines, and agent activity.
+                  </div>
+                </div>
+
+                <div class="chat-window-input">
+                  <input type="text" id="chat-input" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChat()">
+                  <button onclick="sendChat()" class="chat-window-send">Send</button>
+                </div>
+              </div>
+
+              <button type="button" class="chat-fab" id="chat-trigger" onclick="toggleChat()" aria-label="Open assistant chat" aria-expanded="false" aria-controls="chat-window">
+                <span class="chat-fab-copy">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span id="chat-trigger-label">Open assistant chat</span>
+                </span>
+                <svg class="chat-fab-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main class="main-surface">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="loading-overlay" hidden>
+      <div class="loading-content">
+        <span class="spinner"></span>
+        <p id="loading-copy" class="subcopy">Launching run...</p>
+      </div>
+    </div>
+  </body>
+</html>

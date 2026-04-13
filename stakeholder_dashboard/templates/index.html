@@ -1,101 +1,148 @@
 {% extends "base.html" %}
 
-{% block sidebar %}
-  <div class="panel hero-panel">
-    <p class="eyebrow">Pipeline overview</p>
-    <div class="stats-grid">
-      <div class="hero-stat hero-stat-accent">
-        <span>Contracts tracked</span>
-        <strong>{{ pipeline.total }}</strong>
-      </div>
-      <div class="hero-stat">
-        <span>Pipeline value</span>
-        <strong>${{ pipeline.value_millions }}M</strong>
-      </div>
-      <div class="hero-stat">
-        <span>In review</span>
-        <strong>{{ pipeline.by_stage.review }}</strong>
-      </div>
-      <div class="hero-stat">
-        <span>Active contracts</span>
-        <strong>{{ pipeline.by_stage.active }}</strong>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <a href="/run-upload" class="primary-action" style="display:block; text-align:center; text-decoration:none;">New compliance run</a>
-  </div>
-{% endblock %}
-
 {% block content %}
-  {% for stage in stages %}
-    {% set stage_contracts = contracts | selectattr("stage", "equalto", stage.key) | list %}
-    {% if stage_contracts %}
-      <div class="panel">
-        <div class="section-heading">
-          <h2>{{ stage.label }}</h2>
-          <span class="section-badge">{{ stage_contracts | length }}</span>
-        </div>
-        <p class="section-copy">{{ stage.description }}</p>
-
-        <div class="card-grid" style="margin-top: 18px;">
-          {% for c in stage_contracts %}
-            <div class="card">
-              <div class="card-meta">
-                <small>{{ c.agency }}</small>
-                <small style="color: var(--good); font-weight: 600;">{{ c.value }}</small>
-              </div>
-              <h3>{{ c.title }}</h3>
-              <p class="analysis-copy">{{ c.summary }}</p>
-
-              {% if c.due_date %}
-                <p class="section-copy" style="color: var(--warn); margin-top: 8px;">Due {{ c.due_date }}</p>
-              {% endif %}
-
-              {% if c._run %}
-                <div style="margin: 12px 0; padding: 12px; background: var(--accent-soft); border-radius: var(--radius-sm);">
-                  <p class="eyebrow" style="margin-bottom: 6px;">Agent team results</p>
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
-                    <span class="status-pill status-good">{{ c._run.compliant }} compliant</span>
-                    <span class="status-pill status-warn">{{ c._run.partial }} partial</span>
-                    {% if c._run.not_addressed > 0 %}
-                      <span class="status-pill status-muted">{{ c._run.not_addressed }} not addressed</span>
-                    {% endif %}
-                  </div>
-                  <small style="color: var(--muted);">{{ c._run.planning_steps }} steps &middot; {{ c._run.planner_mode }} planned &middot; confidence {% if c._run.confidence_min is not none %}{{ '%.2f'|format(c._run.confidence_min) }}-{{ '%.2f'|format(c._run.confidence_max) }}{% else %}n/a{% endif %}</small>
+<div class="workspace">
+    <aside class="ws-sidebar">
+        <section class="panel panel-hero">
+            <p class="eyebrow">Pipeline snapshot</p>
+            <div class="stats-grid">
+                <div class="stat-card stat-card-dark">
+                    <div class="val">{{ pipeline.total }}</div>
+                    <div class="label">Contracts tracked</div>
                 </div>
-              {% endif %}
-
-              {% if c.performance is defined and c.performance %}
-                <div style="margin: 12px 0;">
-                  {% if c.performance.sla_metrics is defined %}
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      {% for m in c.performance.sla_metrics[:3] %}
-                        <span class="badge">{{ m.name }}: {{ m.actual }}</span>
-                      {% endfor %}
-                    </div>
-                  {% endif %}
-                  {% if c.performance.cpars is defined and c.performance.cpars is mapping %}
-                    <span class="status-pill status-good" style="margin-top: 8px;">CPARS: {{ c.performance.cpars.overall }}</span>
-                  {% endif %}
+                <div class="stat-card">
+                    <div class="val">${{ pipeline.value_millions }}M</div>
+                    <div class="label">Pipeline value</div>
                 </div>
-              {% endif %}
-
-              <div class="inline-actions" style="margin-top: 12px;">
-                {% if c.run_id %}
-                  <a href="/runs/{{ c.run_id }}" class="inline-action">View analysis</a>
-                  <a href="/runs/{{ c.run_id }}/workflow" class="inline-action secondary-link">Workflow</a>
-                {% endif %}
-                {% if c.stage == 'solicitation' %}
-                  <a href="/run-upload" class="inline-action">Start review</a>
-                {% endif %}
-                <a href="/contracts/{{ c.id }}" class="inline-action secondary-link">Details</a>
-              </div>
+                <div class="stat-card">
+                    <div class="val">{{ pipeline.by_stage.review }}</div>
+                    <div class="label">In review</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val">{{ pipeline.by_stage.active }}</div>
+                    <div class="label">Active delivery</div>
+                </div>
             </div>
-          {% endfor %}
-        </div>
-      </div>
-    {% endif %}
-  {% endfor %}
+        </section>
+
+        <section class="panel">
+            <a href="/run-upload" class="btn btn-primary btn-full">New compliance run</a>
+        </section>
+
+        <section class="panel">
+            <p class="eyebrow">Quick links</p>
+            <div class="card-actions" style="margin-top:0;">
+                <a href="/reviews" class="btn btn-secondary">Review queue</a>
+                <a href="/library" class="btn btn-secondary">Document library</a>
+                <a href="/activity" class="btn btn-secondary">Agent activity</a>
+            </div>
+        </section>
+    </aside>
+
+    <main class="ws-main">
+        {% if critical_notifications %}
+        <section class="alert-banner">
+            <div class="alert-banner-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+                <div class="alert-banner-title">{{ critical_notifications | length }} items need attention</div>
+                <div class="alert-banner-items">
+                    {% for n in critical_notifications %}
+                    <div class="alert-banner-item">
+                        <span>{{ n.title }}</span>
+                        {% if n.action_url %}<a href="{{ n.action_url }}">{{ n.action_label }}</a>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% for stage in stages %}
+            {% set stage_contracts = contracts | selectattr("stage", "equalto", stage.key) | list %}
+            {% if stage_contracts %}
+            <section class="panel">
+                <div class="section-head">
+                    <h2>{{ stage.label | lower | capitalize }}</h2>
+                    <span class="section-tag section-tag-accent">{{ stage_contracts | length }}</span>
+                </div>
+                <p class="desc">{{ stage_explanations.get(stage.key, stage.description) }}</p>
+
+                <div class="card-grid">
+                    {% for c in stage_contracts %}
+                    <article class="card">
+                        {% if c._run %}
+                            {% set missing_count = (c._run.not_addressed or 0) + (c._run.not_compliant or 0) %}
+                            {% set total = (c._run.compliant or 0) + (c._run.partial or 0) + missing_count %}
+                            {% if total > 0 %}
+                            <div class="comp-bar">
+                                <div class="comp-bar-g" style="flex: {{ c._run.compliant or 0 }};"></div>
+                                <div class="comp-bar-a" style="flex: {{ c._run.partial or 0 }};"></div>
+                                <div class="comp-bar-r" style="flex: {{ missing_count }};"></div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <div class="card-top">
+                            <span class="card-agency">{{ c.agency }}</span>
+                            <span class="card-value">{{ c.value }}</span>
+                        </div>
+
+                        <h3>{{ c.title }}</h3>
+                        <p>{{ c.summary }}</p>
+
+                        {% if c.due_date %}
+                        <div class="card-due">Due {{ c.due_date }}</div>
+                        {% endif %}
+
+                        {% if c._run %}
+                            {% set missing_count = (c._run.not_addressed or 0) + (c._run.not_compliant or 0) %}
+                            <div class="card-results">
+                                <div class="hd">Agent results</div>
+                                <div class="pills">
+                                    <span class="status-pill sp-good">Met {{ c._run.compliant or 0 }}</span>
+                                    <span class="status-pill sp-warn">Gap {{ c._run.partial or 0 }}</span>
+                                    {% if missing_count > 0 %}<span class="status-pill sp-bad">Missing {{ missing_count }}</span>{% endif %}
+                                </div>
+                                <div class="card-meta" style="margin-top:6px;">
+                                    {{ c._run.planning_steps }} planning steps{% if c._run.planner_mode == 'llm' %} - AI planned{% else %} - fallback{% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if c.performance and c.performance.sla_metrics %}
+                        <div class="perf-chips">
+                            {% for metric in c.performance.sla_metrics[:3] %}
+                            <span class="perf-chip">{{ metric.name }} {{ metric.actual }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if c.performance and c.performance.migration_progress %}
+                            {% set mig = c.performance.migration_progress %}
+                            {% set pct = ((mig.migrated / mig.total_workloads) * 100) | round(1) if mig.total_workloads else 0 %}
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ pct }}%;"></div>
+                                <div class="progress-text">{{ mig.migrated }}/{{ mig.total_workloads }} migrated</div>
+                            </div>
+                        {% endif %}
+
+                        <div class="card-actions">
+                            {% if c.run_id %}
+                            <a href="/runs/{{ c.run_id }}" class="btn btn-primary">View findings</a>
+                            <a href="/runs/{{ c.run_id }}/workflow" class="btn btn-secondary">Agent workflow</a>
+                            {% elif c.stage == 'solicitation' %}
+                            <a href="/run-upload" class="btn btn-primary">Start review</a>
+                            {% endif %}
+                            <a href="/contracts/{{ c.id }}" class="btn btn-secondary">Contract details</a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        {% endfor %}
+    </main>
+</div>
 {% endblock %}

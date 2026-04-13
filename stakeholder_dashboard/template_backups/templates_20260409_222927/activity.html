@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Start here</p>
+    <p class="section-copy">Select a review to see the key decisions first. Expand the detailed log only if you need low-level trace data.</p>
+    <dl class="info-list" style="margin-top: 14px;">
+      <div><dt>Total activity events</dt><dd>{{ activity_stats.activity_count }}</dd></div>
+      <div><dt>Reviews represented</dt><dd>{{ activity_stats.case_count }}</dd></div>
+      <div><dt>Active agent roles</dt><dd>{{ activity_stats.agent_count }}</dd></div>
+    </dl>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel hero-panel">
+    <h2>System activity</h2>
+    <p class="panel-copy">This page summarizes what the AI agent team did across reviews. Planning decisions explain why the orchestrator chose each next step, and communication summaries show how work was coordinated.</p>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Select a review</h2>
+      <span class="section-badge">{{ runs | length }}</span>
+    </div>
+    <div class="filter-group">
+      {% for run in runs %}
+        <button class="filter-chip {% if selected_run == run.scope %}is-active{% endif %}" type="button" onclick="window.location='/activity?run={{ run.scope }}'">
+          {{ run.readable_title }}
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if selected_run_activity %}
+    <div class="panel">
+      <div class="section-heading">
+        <h2>Analysis steps</h2>
+        <span class="section-badge">{{ selected_run_activity | length }} events</span>
+      </div>
+      <p class="section-copy" style="margin-bottom: 14px;">Summary for {{ selected_run_title }}.</p>
+
+      {% for event in selected_run_activity %}
+        <div style="padding: 14px 0; border-top: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+            <div>
+              <strong>{{ event.title }}</strong>
+              {% if event.mode == 'llm' %}
+                <span class="badge" style="background: var(--accent-soft); color: var(--accent); margin-left: 8px;">AI decided</span>
+              {% endif %}
+            </div>
+            {% if event.confidence and event.confidence.mean is not none %}
+              <small style="color: var(--muted);">Confidence: {{ "%.2f"|format(event.confidence.mean) }}</small>
+            {% endif %}
+          </div>
+          <p class="analysis-copy" style="margin-top: 6px;">{{ event.detail }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="panel">
+      <p class="empty-copy">No activity found for the selected review.</p>
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <details>
+      <summary class="text-link">Show detailed event log</summary>
+      <div class="activity-list" style="margin-top: 12px;">
+        {% for item in raw_activity_events %}
+          <article class="activity-card">
+            <div class="activity-meta">
+              <small>{{ item.timestamp_label }}</small>
+              <span class="status-pill status-muted">{{ item.category_label }}</span>
+            </div>
+            <h3>{{ item.summary }}</h3>
+            <p class="analysis-copy" style="margin-top: 8px;">{{ item.source }}{% if item.target %} -> {{ item.target }}{% endif %}</p>
+            <p class="analysis-copy" style="margin-top: 8px;">{{ item.details }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+{% endblock %}

@@ -3,47 +3,10 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 from rich.console import Console
 
-from compliance_agent.agentic import DocumentInput, DocumentManifest, WorkflowGoal, WorkflowRunResult
 from compliance_agent.scenarios import find_results_json, load_scenario, scenario_output_dir
-from demo import resolve_demo_args, run_agentic_mode, run_linear_mode, run_scenario_evaluation
-
-
-class FakeLinearAgent:
-    def __init__(self):
-        self.process_calls = []
-        self.export_calls = []
-
-    def process(self, policy_path, response_path, glossary_path=None, context_paths=None, run_id=None):
-        self.process_calls.append({
-            "policy_path": policy_path,
-            "response_path": response_path,
-            "glossary_path": glossary_path,
-            "context_paths": context_paths,
-            "run_id": run_id,
-        })
-        return {
-            "requirements": [SimpleNamespace(req_id="REQ_0001")],
-            "decisions": [SimpleNamespace(label="compliant", confidence=0.9)],
-            "review_queue": [],
-            "run_id": run_id or "scenario_linear_run",
-        }
-
-    def export_matrix(self, output_path):
-        Path(output_path).write_text("matrix")
-        self.export_calls.append(("matrix", output_path))
-
-    def export_json(self, output_path):
-        Path(output_path).write_text(json.dumps({
-            "REQ_0001": "compliant",
-        }))
-        self.export_calls.append(("json", output_path))
-
-    def export_report(self, output_path):
-        Path(output_path).write_text("# report")
-        self.export_calls.append(("report", output_path))
+from demo import resolve_demo_args, run_mcp_mode, run_scenario_evaluation
 
 
 def _write_scenario(tmp_path, goal="compliance_review", evaluate_after_run=True):
@@ -64,7 +27,7 @@ def _write_scenario(tmp_path, goal="compliance_review", evaluate_after_run=True)
     }))
     (scenario_dir / "scenario.json").write_text(json.dumps({
         "name": "scenario_case",
-        "mode": "agentic",
+        "mode": "mcp",
         "goal": goal,
         "output_subdir": "scenario_case",
         "evaluate_after_run": evaluate_after_run,
@@ -91,7 +54,6 @@ def test_load_scenario_validates_and_resolves_paths(tmp_path):
 def test_resolve_demo_args_applies_scenario_defaults(tmp_path):
     scenario_dir = _write_scenario(tmp_path)
     args = SimpleNamespace(
-        mode=None,
         goal=None,
         policy=None,
         response=None,
@@ -99,24 +61,21 @@ def test_resolve_demo_args_applies_scenario_defaults(tmp_path):
         context=[],
         output_dir=None,
         run_id=None,
-        resume_run_id=None,
         scenario_dir=str(scenario_dir),
         evaluate_only=False,
     )
 
     resolved = resolve_demo_args(args)
 
-    assert resolved.mode == "mcp"
     assert resolved.goal == "compliance_review"
     assert resolved.run_id == "scenario_case"
     assert resolved.policy.endswith("source.txt")
     assert resolved.output_dir.endswith("output/demo_cases/scenario_case")
 
 
-def test_run_linear_mode_uses_scenario_output_dir(tmp_path):
+def test_run_mcp_mode_uses_scenario_output_dir(monkeypatch, tmp_path):
     scenario_dir = _write_scenario(tmp_path)
     args = resolve_demo_args(SimpleNamespace(
-        mode="linear",
         goal=None,
         policy=None,
         response=None,
@@ -124,86 +83,35 @@ def test_run_linear_mode_uses_scenario_output_dir(tmp_path):
         context=[],
         output_dir=None,
         run_id=None,
-        resume_run_id=None,
         scenario_dir=str(scenario_dir),
         evaluate_only=False,
     ))
 
-    fake_agent = FakeLinearAgent()
-    results = run_linear_mode(args, Console(file=io.StringIO(), force_terminal=False), agent=fake_agent)
+    captured_goal = {}
+
+    async def fake_run(goal):
+        captured_goal.update(goal)
+        out_dir = Path(goal["output_dir"]) / goal["run_id"]
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return {
+            "run_id": goal["run_id"],
+            "run_dir": str(out_dir),
+            "outputs": {"requirements": [], "decisions": []},
+            "artifacts": {"results_json": str(out_dir / "compliance_results.json")},
+        }
+
+    monkeypatch.setattr("compliance_agent.main.run", fake_run)
+
+    run_mcp_mode(args, Console(file=io.StringIO(), force_terminal=False))
 
     output_dir = scenario_output_dir(args._scenario)
-    assert results["artifacts"]["results_json"].startswith(str(output_dir))
-    assert Path(results["artifacts"]["results_json"]).exists()
-
-
-def test_run_agentic_mode_materializes_scenario_artifacts(tmp_path):
-    scenario_dir = _write_scenario(tmp_path, goal="draft_proposal", evaluate_after_run=False)
-    args = resolve_demo_args(SimpleNamespace(
-        mode=None,
-        goal=None,
-        policy=None,
-        response=None,
-        glossary=None,
-        context=[],
-        output_dir=None,
-        run_id=None,
-        resume_run_id=None,
-        scenario_dir=str(scenario_dir),
-        evaluate_only=False,
-    ))
-
-    source_artifact_dir = tmp_path / "agentic_source"
-    source_artifact_dir.mkdir()
-    workflow_summary = source_artifact_dir / "workflow_summary.md"
-    draft_outline = source_artifact_dir / "draft_outline.json"
-    handoff_summary = source_artifact_dir / "handoff_summary.json"
-    workflow_summary.write_text("# workflow")
-    draft_outline.write_text(json.dumps({"sections": []}))
-    handoff_summary.write_text(json.dumps({"status": "completed"}))
-
-    result = WorkflowRunResult(
-        run_id="scenario_case",
-        status="completed",
-        goal=WorkflowGoal(goal_type="draft_proposal", draft_requested=True),
-        document_manifest=DocumentManifest(
-            primary_source=DocumentInput(path="source.txt", role="solicitation_or_requirement_source"),
-            primary_response=DocumentInput(path="response.txt", role="response_or_proposal"),
-        ),
-        tasks=[],
-        approvals=[],
-        artifacts={
-            "workflow_summary": str(workflow_summary),
-            "draft_outline": str(draft_outline),
-            "handoff_summary": str(handoff_summary),
-        },
-        review_queue=[],
-        summary={"planner_actions": []},
-    )
-
-    class FakeEngine:
-        def run(self, **kwargs):
-            self.kwargs = kwargs
-            return result
-
-    demo_result = run_agentic_mode(
-        args,
-        console=Console(file=io.StringIO(), force_terminal=False),
-        engine=FakeEngine(),
-        approval_handler=lambda request: None,
-    )
-
-    output_dir = Path(args.output_dir)
-    assert output_dir.joinpath("workflow_summary.md").exists()
-    assert output_dir.joinpath("draft_outline.json").exists()
-    assert output_dir.joinpath("handoff_summary.json").exists()
-    assert demo_result.artifacts["draft_outline"].startswith(str(output_dir))
+    assert captured_goal["run_id"] == "scenario_case"
+    assert captured_goal["output_dir"] == str(output_dir.parent)
 
 
 def test_run_scenario_evaluation_writes_metrics_and_report(tmp_path):
     scenario_dir = _write_scenario(tmp_path)
     args = resolve_demo_args(SimpleNamespace(
-        mode=None,
         goal=None,
         policy=None,
         response=None,
@@ -211,7 +119,6 @@ def test_run_scenario_evaluation_writes_metrics_and_report(tmp_path):
         context=[],
         output_dir=None,
         run_id=None,
-        resume_run_id=None,
         scenario_dir=str(scenario_dir),
         evaluate_only=True,
     ))
@@ -241,20 +148,3 @@ def test_run_scenario_evaluation_writes_metrics_and_report(tmp_path):
     assert output_dir.joinpath("evaluation_metrics.json").exists()
     assert output_dir.joinpath("evaluation_report.md").exists()
     assert evaluation_result["metrics"]["accuracy"] == 1.0
-
-
-def test_load_scenario_requires_primary_pair(tmp_path):
-    scenario_dir = tmp_path / "scenario_bad"
-    scenario_dir.mkdir()
-    (scenario_dir / "source.txt").write_text("requirements")
-    (scenario_dir / "scenario.json").write_text(json.dumps({
-        "name": "bad_case",
-        "mode": "agentic",
-        "goal": "compliance_review",
-        "documents": [
-            {"path": "source.txt", "role": "solicitation_or_requirement_source"},
-        ],
-    }))
-
-    with pytest.raises(ValueError, match="primary response"):
-        load_scenario(scenario_dir)

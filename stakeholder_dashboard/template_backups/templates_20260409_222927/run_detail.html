@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <div class="panel panel-quiet">
+    <p class="eyebrow">Review metadata</p>
+    <dl class="info-list" style="margin-top: 0;">
+      <div><dt>Review reference</dt><dd>{{ run.run_id | replace('_', ' ') | title }}</dd></div>
+      <div><dt>Date created</dt><dd>{{ run.created_label }}</dd></div>
+      <div><dt>Requirements analyzed</dt><dd>{{ run.summary_cards.total_requirements }}</dd></div>
+      <div><dt>Team planning mode</dt><dd>{% if run.planner_mode == 'llm' %}AI planned{% else %}Rules fallback{% endif %}</dd></div>
+      <div><dt>Workflow</dt><dd>{{ run.meta.workflow | replace('_', ' ') | title }}</dd></div>
+    </dl>
+    <div class="inline-actions" style="margin-top: 14px;">
+      <a class="inline-action secondary-link" href="/runs/{{ run.scope }}/workflow">Agent workflow</a>
+      <a class="inline-action secondary-link" href="{{ download_all_url }}">Download all files</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="panel hero-panel">
+    <h2>Compliance review: {{ run.title }}</h2>
+    <p class="panel-copy">The agent team analyzed {{ run.requirements | length }} requirements from the statement of work and assessed our proposal against each one. The orchestrator planned {{ run.planning_trace | length }} analysis steps using {% if run.planner_mode == 'llm' %}AI-guided{% else %}fallback rule-based{% endif %} reasoning.</p>
+
+    <div class="stats-grid" style="margin-top: 18px;">
+      <div class="hero-stat metric-good">
+        <span>Requirements met</span>
+        <strong>{{ compliant_count }}</strong>
+        <small>Proposal fully addresses these requirements</small>
+      </div>
+      <div class="hero-stat metric-warn">
+        <span>Gaps identified</span>
+        <strong>{{ partial_count }}</strong>
+        <small>Proposal partially addresses these items</small>
+      </div>
+      <div class="hero-stat metric-bad">
+        <span>Not addressed</span>
+        <strong>{{ not_addressed_count }}</strong>
+        <small>Proposal is missing these items</small>
+      </div>
+      <div class="hero-stat">
+        <span>Average confidence</span>
+        <strong>{{ "%.0f" | format(avg_confidence * 100) }}%</strong>
+        <small>Model certainty in current assessments</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Requires attention</h2>
+      <span class="section-badge" style="background: var(--warn-soft); color: var(--warn);">{{ attention_count }} items</span>
+    </div>
+    <p class="section-copy" style="margin-bottom: 14px;">These requirements are not fully addressed in the current proposal and should be reviewed before submission.</p>
+
+    {% if attention_items %}
+      {% for d in attention_items %}
+        <details class="requirement-row">
+          <summary class="requirement-summary">
+            <div class="requirement-summary-copy">
+              <p class="req-id">{{ d.requirement_id }}</p>
+              <h3>{{ d.requirement_text[:120] }}{% if d.requirement_text|length > 120 %}...{% endif %}</h3>
+              <p class="analysis-copy" style="margin-top: 8px;">{{ d.explanation or 'No assessment narrative.' }}</p>
+            </div>
+            <div class="requirement-summary-meta">
+              <span class="status-pill {% if d.label == 'partial' %}status-warn{% else %}status-bad{% endif %}">
+                {% if d.label == 'partial' %}Gap{% else %}Missing{% endif %}
+              </span>
+              <strong>{{ "%.0f" | format((d.confidence or 0) * 100) }}%</strong>
+              <small>confidence</small>
+            </div>
+          </summary>
+
+          <div class="requirement-body">
+            <div class="requirement-detail-grid">
+              <div>
+                <p class="detail-label">Full requirement</p>
+                <p class="analysis-copy">{{ d.requirement_text }}</p>
+
+                {% if d.suggested_edits %}
+                  <div class="improvement-block" style="margin-top: 14px;">
+                    <p>Recommended action</p>
+                    <ul>
+                      {% for edit in d.suggested_edits %}
+                        <li>{{ edit }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endif %}
+              </div>
+              <div>
+                <p class="detail-label">Evidence found</p>
+                {% if d.evidence_chunks %}
+                  <div class="evidence-grid">
+                    {% for e in d.evidence_chunks[:6] %}
+                      <div class="evidence-item">
+                        <div class="evidence-meta">
+                          <span>{{ e.source_citation or 'Proposal excerpt' }}</span>
+                          <span>Score: {{ "%.2f" | format(e.retrieval_score or 0) }}</span>
+                        </div>
+                        <p class="analysis-copy">{{ e.evidence_text[:300] }}{% if e.evidence_text|length > 300 %}...{% endif %}</p>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="analysis-copy">No supporting evidence was retrieved for this requirement.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </details>
+      {% endfor %}
+    {% else %}
+      <p class="empty-copy">No urgent gaps were found in this review.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Requirements met</h2>
+      <span class="section-badge" style="background: var(--good-soft); color: var(--good);">{{ compliant_count }} items</span>
+    </div>
+    <p class="section-copy" style="margin-bottom: 14px;">These requirements are fully addressed in the current proposal.</p>
+
+    {% for d in compliant_items %}
+      <details class="requirement-row">
+        <summary class="requirement-summary">
+          <div class="requirement-summary-copy">
+            <p class="req-id">{{ d.requirement_id }}</p>
+            <h3>{{ d.requirement_text[:120] }}{% if d.requirement_text|length > 120 %}...{% endif %}</h3>
+            <p class="analysis-copy" style="margin-top: 8px;">{{ d.explanation or 'Requirement appears fully addressed.' }}</p>
+          </div>
+          <div class="requirement-summary-meta">
+            <span class="status-pill status-good">Met</span>
+            <strong>{{ "%.0f" | format((d.confidence or 0) * 100) }}%</strong>
+            <small>confidence</small>
+          </div>
+        </summary>
+        <div class="requirement-body">
+          <p class="detail-label">Full requirement</p>
+          <p class="analysis-copy">{{ d.requirement_text }}</p>
+        </div>
+      </details>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>How the agent team worked</h2>
+      <span class="section-badge">{{ run.planning_trace | length }} steps</span>
+    </div>
+    <p class="section-copy" style="margin-bottom: 14px;">The orchestrator planned each step based on intermediate results. This trace explains what it chose to do and why.</p>
+
+    {% for step in run.planning_trace %}
+      <div style="padding: 14px 0; border-top: 1px solid var(--line);">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span class="section-badge" style="min-width: 32px; text-align: center;">{{ step.step }}</span>
+          <strong>{{ step.action | replace('dispatch_', '') | replace('_', ' ') | title }}</strong>
+          {% if step.planner_mode == 'llm' %}
+            <span class="badge" style="background: var(--accent-soft); color: var(--accent);">AI decided</span>
+          {% else %}
+            <span class="badge">Fallback rule</span>
+          {% endif %}
+        </div>
+        <p class="analysis-copy" style="margin: 8px 0 0 42px;">{{ step.reasoning }}</p>
+        {% if step.confidence_after and step.confidence_after.mean is not none %}
+          <p class="section-copy" style="margin: 4px 0 0 42px; font-size: 0.82rem;">
+            After this step: confidence {{ "%.2f"|format(step.confidence_after.min) }}-{{ "%.2f"|format(step.confidence_after.max) }} (avg {{ "%.2f"|format(step.confidence_after.mean) }})
+          </p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Downloadable artifacts</h2>
+      <span class="section-badge">{{ run.artifact_groups.groups | length }} groups</span>
+    </div>
+
+    {% for group in run.artifact_groups.groups %}
+      <p class="eyebrow" style="margin-top: {% if loop.first %}14px{% else %}18px{% endif %};">{{ group.label }}</p>
+      <div class="run-list" style="margin-top: 8px;">
+        {% for artifact in group.files %}
+          <a class="run-link" href="/downloads/{{ run.scope }}/{{ artifact.name }}">
+            <strong>{{ artifact.label }}</strong>
+            <small>{{ artifact.filename }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <div class="section-heading">
+      <h2>Stakeholder notes</h2>
+      <span class="section-badge">Collaboration</span>
+    </div>
+
+    <form action="/runs/{{ run.scope }}/notes" method="post" class="stacked-form" style="margin-top: 4px;">
+      <label>
+        <span>Add note</span>
+        <textarea name="note" rows="3" placeholder="Add context, concerns, or follow-up actions."></textarea>
+      </label>
+      <button type="submit" class="primary-action">Save note</button>
+    </form>
+
+    {% if stakeholder_notes %}
+      <div class="run-list" style="margin-top: 16px;">
+        {% for item in stakeholder_notes|reverse %}
+          <div class="run-link" style="pointer-events: none; cursor: default;"><small><strong>{{ item.timestamp }}</strong> - {{ item.note }}</small></div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

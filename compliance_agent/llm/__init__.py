@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from .. import config
-from ..runtime import require_langchain_llm_runtime
 from .deepinfra import DeepInfraProvider
 from .openai_compat import OpenAICompatProvider
 from .provider import LLMProvider, LLMRequest, LLMResponse
@@ -18,8 +17,6 @@ __all__ = [
     "get_provider",
     "reset_provider",
     "provider_model_for_tier",
-    "openai_compatible_client_kwargs",
-    "build_default_chat_llm",
 ]
 
 logger = logging.getLogger(__name__)
@@ -84,25 +81,3 @@ def reset_provider() -> None:
 def provider_model_for_tier(tier: str = "standard") -> str:
     """Resolve the configured model for a skill tier."""
     return config.LLM_TIERS.get(tier, config.LLM_MODEL) or config.LLM_MODEL
-
-
-def openai_compatible_client_kwargs(model: Optional[str] = None) -> Dict[str, Any]:
-    """Return kwargs for langchain's ChatOpenAI wrapper."""
-    kwargs: Dict[str, Any] = {
-        "model": model or config.LLM_MODEL,
-        "api_key": config.LLM_API_KEY,
-        "timeout": config.LLM_TIMEOUT,
-    }
-    if config.LLM_BASE_URL:
-        kwargs["base_url"] = config.LLM_BASE_URL
-    return kwargs
-
-
-def build_default_chat_llm(temperature: float = 0.1, model: Optional[str] = None):
-    """Build a provider-aware ChatOpenAI client for legacy worker modules."""
-    require_langchain_llm_runtime()
-    from langchain_openai import ChatOpenAI
-
-    kwargs = openai_compatible_client_kwargs(model=model)
-    kwargs["temperature"] = temperature
-    return ChatOpenAI(**kwargs)

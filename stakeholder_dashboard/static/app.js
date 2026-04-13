@@ -176,4 +176,145 @@ async function previewFile(path) {
   }
 }
 
+const notificationShell = document.getElementById("notification-shell");
+const notificationPanel = document.getElementById("notification-panel");
+const notificationTrigger = document.getElementById("notification-trigger");
+const chatShell = document.getElementById("chat-shell");
+const chatWindow = document.getElementById("chat-window");
+const chatTrigger = document.getElementById("chat-trigger");
+const chatTriggerLabel = document.getElementById("chat-trigger-label");
+const chatInput = document.getElementById("chat-input");
+const chatMessages = document.getElementById("chat-messages");
+
+function setNotificationOpenState(isOpen) {
+  if (!notificationPanel) return;
+  notificationPanel.classList.toggle("is-open", isOpen);
+  if (notificationShell) {
+    notificationShell.classList.toggle("is-open", isOpen);
+  }
+  if (notificationTrigger) {
+    notificationTrigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+}
+
+function closeNotifications() {
+  setNotificationOpenState(false);
+}
+
+function setChatOpenState(isOpen) {
+  if (!chatWindow) return;
+  chatWindow.classList.toggle("is-open", isOpen);
+  if (chatShell) {
+    chatShell.classList.toggle("is-open", isOpen);
+  }
+  if (chatTrigger) {
+    chatTrigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    chatTrigger.setAttribute("aria-label", isOpen ? "Close assistant chat" : "Open assistant chat");
+  }
+  if (chatTriggerLabel) {
+    chatTriggerLabel.textContent = isOpen ? "Hide assistant chat" : "Open assistant chat";
+  }
+}
+
+function toggleNotifications(event) {
+  if (event) event.stopPropagation();
+  if (!notificationPanel) return;
+  const shouldOpen = !notificationPanel.classList.contains("is-open");
+  if (shouldOpen) {
+    toggleChat(false);
+  }
+  setNotificationOpenState(shouldOpen);
+}
+
+if (notificationTrigger && notificationTrigger.tagName !== "BUTTON") {
+  notificationTrigger.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleNotifications(event);
+  });
+}
+
+function toggleChat(forceState) {
+  if (!chatWindow) return;
+  const shouldOpen =
+    typeof forceState === "boolean" ? forceState : !chatWindow.classList.contains("is-open");
+  if (shouldOpen) {
+    closeNotifications();
+  }
+  setChatOpenState(shouldOpen);
+  if (shouldOpen && chatInput) {
+    chatInput.focus();
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+
+  if (notificationPanel && notificationPanel.classList.contains("is-open")) {
+    if (!notificationShell || !notificationShell.contains(target)) {
+      closeNotifications();
+    }
+  }
+
+  if (chatWindow && chatWindow.classList.contains("is-open")) {
+    if (!chatShell || !chatShell.contains(target)) {
+      toggleChat(false);
+    }
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  closeNotifications();
+  toggleChat(false);
+});
+
+setNotificationOpenState(false);
+setChatOpenState(false);
+
+function appendChatBubble(role, text, extraClass = "") {
+  if (!chatMessages) return null;
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${role}${extraClass ? ` ${extraClass}` : ""}`;
+  bubble.textContent = text;
+  chatMessages.appendChild(bubble);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return bubble;
+}
+
+async function sendChat() {
+  if (!chatInput || !chatMessages) return;
+  const q = chatInput.value.trim();
+  if (!q) return;
+
+  appendChatBubble("user", q);
+  chatInput.value = "";
+  chatInput.disabled = true;
+
+  const thinking = appendChatBubble("thinking", "Thinking...");
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
+    const data = await resp.json();
+    if (thinking) thinking.remove();
+    appendChatBubble("assistant", data.answer || "I could not generate an answer.");
+  } catch (_error) {
+    if (thinking) thinking.remove();
+    appendChatBubble("assistant", "Sorry, I could not process that. Please try again.");
+  } finally {
+    chatInput.disabled = false;
+    if (chatWindow && chatWindow.classList.contains("is-open")) {
+      chatInput.focus();
+    }
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+}
+
 window.previewFile = previewFile;
+window.toggleNotifications = toggleNotifications;
+window.toggleChat = toggleChat;
+window.sendChat = sendChat;
