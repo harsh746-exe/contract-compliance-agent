@@ -71,7 +71,7 @@
       label.setAttribute("text-anchor", "middle");
       label.setAttribute("font-size", "11");
       label.setAttribute("font-weight", "700");
-      label.setAttribute("fill", "#e2e8f0");
+      label.setAttribute("fill", "#1a2b25");
     label.textContent = agent.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     svg.appendChild(label);
 

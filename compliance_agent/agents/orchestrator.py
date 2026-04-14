@@ -44,6 +44,7 @@ class Orchestrator(BaseAgent):
             "approval_pending": [],
         }
         self._workflow_state: dict[str, Any] = {}
+        self._stage_callback = None
 
     def _declare_tools(self) -> list[ToolSchema]:
         return [
@@ -67,6 +68,10 @@ class Orchestrator(BaseAgent):
         if workflow_type == "general":
             return await self._run_general_workflow(goal)
         return await self._run_compliance_workflow(goal)
+
+    def set_stage_callback(self, callback) -> None:
+        """Register a callback for planning-stage progress updates."""
+        self._stage_callback = callback
 
     async def _determine_workflow(self, goal: dict) -> str:
         task = (goal.get("task") or goal.get("goal_type") or "compliance_review").lower()
@@ -148,6 +153,7 @@ class Orchestrator(BaseAgent):
             )
 
             logger.info("Step %d: Planner chose '%s' - %s", step_num, action, reasoning)
+            self._emit_stage_update(step_num, action, "running")
 
             self.bus.record_event(
                 MessageType.STATUS,
@@ -177,6 +183,7 @@ class Orchestrator(BaseAgent):
                         "confidence_after": self._confidence_snapshot(),
                     }
                 )
+                self._emit_stage_update(step_num, action, "completed")
                 result["planning_trace"] = self._workflow_state.get("action_history", [])
                 return result
             if action == "dispatch_intake":
@@ -216,10 +223,34 @@ class Orchestrator(BaseAgent):
                     "confidence_after": self._confidence_snapshot(),
                 }
             )
+            self._emit_stage_update(step_num, action, "completed")
 
         logger.warning("Hit MAX_PLANNING_STEPS (%d), forcing finalize", MAX_PLANNING_STEPS)
         self._workflow_state["issues"].append(f"Planner hit safety cap ({MAX_PLANNING_STEPS})")
         return await self._execute_finalize(goal_payload)
+
+    def _stage_label(self, action: str) -> str:
+        cleaned = action.replace("dispatch_", "").replace("request_", "").replace("_", " ").strip()
+        return cleaned.title() or "Working"
+
+    def _emit_stage_update(self, step_num: int, action: str, status: str) -> None:
+        callback = self._stage_callback
+        if not callback:
+            return
+        try:
+            callback(
+                {
+                    "step": step_num,
+                    "action": action,
+                    "status": status,
+                    "label": f"Step {step_num}: {self._stage_label(action)}",
+                    "stages_completed": [entry.get("action", "") for entry in self._workflow_state.get("action_history", [])],
+                    "requirements_count": len(self._workflow_state.get("requirements", [])),
+                    "decisions_count": len(self._workflow_state.get("decisions", {})),
+                }
+            )
+        except Exception:
+            logger.exception("Stage callback failed for action=%s step=%s", action, step_num)
 
     def _build_state_summary(self) -> str:
         ws = self._workflow_state

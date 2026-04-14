@@ -129,8 +129,12 @@
                         </div>
                         {% if d.suggested_edits %}
                         <div class="improve-block">
-                            <strong>Suggested improvement</strong>
-                            <p>{% for edit in d.suggested_edits %}{{ loop.index }}. {{ edit }}{% if not loop.last %} {% endif %}{% endfor %}</p>
+                            <strong>Suggested improvements</strong>
+                            <ul>
+                                {% for edit in d.suggested_edits %}
+                                <li>{{ edit }}</li>
+                                {% endfor %}
+                            </ul>
                         </div>
                         {% endif %}
                     </div>

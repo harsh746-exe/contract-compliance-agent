@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="workspace">
+    <div class="ws-sidebar">
+        <div class="panel panel-hero">
+            <div class="eyebrow">Run in progress</div>
+            <div class="info-list">
+                <div><dt>Run ID</dt><dd>{{ run_id }}</dd></div>
+                <div><dt>Status</dt><dd id="status-text">{{ run_status.status }}</dd></div>
+                <div><dt>Started</dt><dd>{{ run_status.started_at[:19] if run_status.started_at else '...' }}</dd></div>
+            </div>
+        </div>
+        <div class="panel" style="text-align:center;">
+            <a href="/" class="btn btn-secondary btn-full" style="text-decoration:none;">Run in background</a>
+            <p style="font-size:10px;color:var(--muted);margin-top:8px;">You'll be notified when it's done</p>
+        </div>
+    </div>
+
+    <div class="ws-main">
+        <div class="panel panel-hero">
+            <h1 style="font-family:Georgia,serif;font-size:20px;font-weight:600;margin-bottom:8px;">Agent team is working</h1>
+            <p class="desc" style="margin-bottom:0;">The agent team is analyzing your documents. Each stage below lights up as it completes.</p>
+        </div>
+
+        <div class="panel" id="stages-panel">
+            <div class="section-head">
+                <h2>Analysis stages</h2>
+                <span class="section-tag section-tag-accent" id="step-counter">Starting...</span>
+            </div>
+
+            <div id="stage-list" style="display:grid;gap:6px;">
+                <div class="stage-row" data-stage="intake" id="stage-intake">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Intake</div>
+                        <div class="stage-desc">Parsing and chunking documents</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="extraction" id="stage-extraction">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Extraction</div>
+                        <div class="stage-desc">Identifying requirements from the SOW</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="retrieval" id="stage-retrieval">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Evidence retrieval</div>
+                        <div class="stage-desc">Searching the proposal for evidence</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="compliance" id="stage-compliance">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Compliance assessment</div>
+                        <div class="stage-desc">Evaluating each requirement against evidence</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="reanalysis" id="stage-reanalysis">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Reanalysis</div>
+                        <div class="stage-desc">Re-examining low-confidence findings</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="qa" id="stage-qa">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Quality assurance</div>
+                        <div class="stage-desc">Validating completeness and consistency</div>
+                    </div>
+                </div>
+                <div class="stage-row" data-stage="finalize" id="stage-finalize">
+                    <div class="stage-indicator waiting"></div>
+                    <div class="stage-info">
+                        <div class="stage-name">Finalize</div>
+                        <div class="stage-desc">Exporting findings and artifacts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="live-stats">
+            <div class="section-head"><h2>Findings so far</h2></div>
+            <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+                <div class="stat-card">
+                    <div class="val" id="live-reqs">-</div>
+                    <div class="label">Requirements found</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val" id="live-decs">-</div>
+                    <div class="label">Decisions made</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val" id="live-elapsed">0s</div>
+                    <div class="label">Elapsed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="error-panel" style="display:none;border-left:3px solid var(--bad);border-radius:0 var(--r-lg) var(--r-lg) 0;">
+            <div class="section-head"><h2 style="color:var(--bad);">Error</h2></div>
+            <p id="error-text" style="font-size:12px;color:var(--muted);"></p>
+        </div>
+    </div>
+</div>
+
+<style>
+.stage-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.5);
+    transition: all 0.3s ease;
+}
+
+.stage-row.active {
+    background: var(--accent-soft);
+    border-color: rgba(23,79,86,0.15);
+}
+
+.stage-row.done {
+    background: var(--good-soft);
+    border-color: rgba(43,105,66,0.1);
+}
+
+.stage-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 11px;
+    transition: all 0.3s ease;
+}
+
+.stage-indicator.waiting {
+    border: 2px solid var(--line);
+    background: transparent;
+}
+
+.stage-indicator.active {
+    border: 2px solid var(--accent);
+    background: var(--accent);
+    color: #edf7f5;
+    animation: pulse 1.5s ease infinite;
+}
+
+.stage-indicator.done {
+    border: 2px solid var(--good);
+    background: var(--good);
+    color: #fff;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.stage-name { font-size: 13px; font-weight: 500; }
+.stage-desc { font-size: 11px; color: var(--muted); }
+</style>
+
+<script>
+var runId = "{{ run_id }}";
+var startTime = Date.now();
+var pollInterval = null;
+var stageMap = {
+    'dispatch_intake': 'intake',
+    'dispatch_extraction': 'extraction',
+    'dispatch_retrieval': 'retrieval',
+    'dispatch_compliance': 'compliance',
+    'request_reanalysis': 'reanalysis',
+    'dispatch_qa': 'qa',
+    'finalize': 'finalize'
+};
+var completedStages = new Set();
+
+function updateElapsed() {
+    var secs = Math.floor((Date.now() - startTime) / 1000);
+    var el = document.getElementById('live-elapsed');
+    if (secs < 60) el.textContent = secs + 's';
+    else el.textContent = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+}
+
+function markDone(row) {
+    row.classList.remove('active');
+    row.classList.add('done');
+    row.querySelector('.stage-indicator').className = 'stage-indicator done';
+    row.querySelector('.stage-indicator').innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+}
+
+async function pollStatus() {
+    try {
+        var resp = await fetch('/api/run-status/' + runId);
+        var data = await resp.json();
+
+        document.getElementById('status-text').textContent = data.status || 'unknown';
+
+        if ((data.requirements_count || 0) > 0) {
+            document.getElementById('live-reqs').textContent = data.requirements_count;
+        }
+        if ((data.decisions_count || 0) > 0) {
+            document.getElementById('live-decs').textContent = data.decisions_count;
+        }
+
+        var allStages = ['intake','extraction','retrieval','compliance','reanalysis','qa','finalize'];
+
+        if (Array.isArray(data.stages_completed)) {
+            data.stages_completed.forEach(function(action) {
+                var key = stageMap[action];
+                if (key && !completedStages.has(key)) {
+                    completedStages.add(key);
+                    var row = document.getElementById('stage-' + key);
+                    if (row) markDone(row);
+                }
+            });
+        }
+
+        var currentStage = data.stage || '';
+        document.getElementById('step-counter').textContent = currentStage || 'Working...';
+
+        var activeMarked = false;
+        allStages.forEach(function(stageKey) {
+            var row = document.getElementById('stage-' + stageKey);
+            if (!row) return;
+            row.classList.remove('active');
+            if (!completedStages.has(stageKey) && data.status === 'running' && !activeMarked) {
+                row.classList.add('active');
+                row.querySelector('.stage-indicator').className = 'stage-indicator active';
+                activeMarked = true;
+                return;
+            }
+            if (!completedStages.has(stageKey)) {
+                row.querySelector('.stage-indicator').className = 'stage-indicator waiting';
+                row.querySelector('.stage-indicator').innerHTML = '';
+            }
+        });
+
+        if (data.status === 'complete') {
+            clearInterval(pollInterval);
+            document.getElementById('step-counter').textContent = 'Complete';
+            allStages.forEach(function(s) {
+                var row = document.getElementById('stage-' + s);
+                if (row) markDone(row);
+            });
+            setTimeout(function() {
+                window.location.href = '/runs/' + runId;
+            }, 2000);
+        }
+
+        if (data.status === 'error') {
+            clearInterval(pollInterval);
+            document.getElementById('step-counter').textContent = 'Failed';
+            document.getElementById('error-panel').style.display = 'block';
+            document.getElementById('error-text').textContent = data.error || 'Unknown error';
+        }
+    } catch (err) {
+        console.error('Poll failed:', err);
+    }
+
+    updateElapsed();
+}
+
+pollStatus();
+pollInterval = setInterval(pollStatus, 2000);
+setInterval(updateElapsed, 1000);
+</script>
+{% endblock %}

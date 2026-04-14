@@ -79,11 +79,14 @@ async def bootstrap() -> Orchestrator:
     return orchestrator
 
 
-async def run(goal: dict) -> dict:
+async def run(goal: dict, stage_callback=None) -> dict:
     """Bootstrap and execute one top-level workflow goal."""
     run_id, run_dir = _prepare_run(goal)
     configure_logging(log_path=run_dir / "agent_trace.log")
     orchestrator = await bootstrap()
+    callback = stage_callback or goal.get("stage_callback")
+    if callback and hasattr(orchestrator, "set_stage_callback"):
+        orchestrator.set_stage_callback(callback)
     result = await orchestrator.execute_goal({
         **goal,
         "run_id": run_id,

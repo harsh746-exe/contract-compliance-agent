@@ -10,6 +10,7 @@ import logging
 import re
 import shutil
 import tempfile
+import threading
 import zipfile
 from datetime import datetime
 from functools import lru_cache
@@ -50,6 +51,10 @@ from evaluation import evaluate_scenario_run
 
 
 logger = logging.getLogger(__name__)
+
+# In-memory tracker for live background run progress.
+_run_status: Dict[str, Dict[str, Any]] = {}
+_run_lock = threading.Lock()
 
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -276,6 +281,119 @@ def _now_stamp() -> str:
     return datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
+def _update_run_status(run_id: str, **kwargs: Any) -> None:
+    with _run_lock:
+        if run_id not in _run_status:
+            _run_status[run_id] = {
+                "status": "pending",
+                "stage": "",
+                "stages_completed": [],
+                "started_at": datetime.now().isoformat(),
+                "finished_at": None,
+                "error": None,
+                "requirements_count": 0,
+                "decisions_count": 0,
+            }
+        _run_status[run_id].update(kwargs)
+
+
+def _get_run_status(run_id: str) -> Dict[str, Any]:
+    with _run_lock:
+        status = _run_status.get(run_id)
+        if not status:
+            return {"status": "not_found"}
+        data = dict(status)
+        data["stages_completed"] = list(status.get("stages_completed", []))
+        return data
+
+
+def _normalize_stage_key(action: str) -> str:
+    if action.startswith("dispatch_"):
+        return action
+    if action.startswith("request_"):
+        return action
+    return action.replace(" ", "_").lower()
+
+
+def _execute_run_in_background(
+    *,
+    run_id: str,
+    title: str,
+    workflow_type: str,
+    documents: List[Dict[str, Any]],
+    output_dir: Path,
+) -> None:
+    """Execute one review in a background thread and update live status."""
+
+    _update_run_status(
+        run_id,
+        status="pending",
+        stage="Queued",
+        stages_completed=[],
+        started_at=datetime.now().isoformat(),
+        finished_at=None,
+        error=None,
+        requirements_count=0,
+        decisions_count=0,
+    )
+
+    def _runner() -> None:
+        _update_run_status(run_id, status="running", stage="Initializing agents")
+        try:
+            seen_actions: List[str] = []
+
+            def stage_cb(payload: Any) -> None:
+                if isinstance(payload, dict):
+                    action = _normalize_stage_key(str(payload.get("action", "")))
+                    if payload.get("status") == "completed" and action and action not in seen_actions:
+                        seen_actions.append(action)
+                    _update_run_status(
+                        run_id,
+                        stage=str(payload.get("label") or payload.get("action") or "Working"),
+                        stages_completed=list(payload.get("stages_completed") or seen_actions),
+                        requirements_count=int(payload.get("requirements_count") or 0),
+                        decisions_count=int(payload.get("decisions_count") or 0),
+                    )
+                    return
+                _update_run_status(run_id, stage=str(payload or "Working"))
+
+            _update_run_status(run_id, stage="Starting agent team")
+
+            _execute_review(
+                title=title,
+                workflow_type=workflow_type,
+                documents=documents,
+                output_dir=output_dir,
+                run_id=run_id,
+                stage_callback=stage_cb,
+            )
+
+            run_bundle = _load_run_bundle(output_dir, scope=run_id)
+            requirements_count = int(run_bundle.get("requirements_count", 0)) if run_bundle else 0
+            decisions_count = int(run_bundle.get("decisions_count", 0)) if run_bundle else 0
+
+            _update_run_status(
+                run_id,
+                status="complete",
+                stage="Done - redirecting to results",
+                finished_at=datetime.now().isoformat(),
+                requirements_count=requirements_count,
+                decisions_count=decisions_count,
+            )
+        except Exception as exc:
+            logger.exception("Background run failed for %s", run_id)
+            _update_run_status(
+                run_id,
+                status="error",
+                stage="Failed",
+                error=str(exc),
+                finished_at=datetime.now().isoformat(),
+            )
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+
+
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -358,10 +476,99 @@ def _format_payload(payload: Any, max_chars: Optional[int] = 420) -> str:
 
 
 def _normalize_suggested_edits(value: Any) -> List[str]:
-    if isinstance(value, list):
-        return [str(item) for item in value if str(item).strip()]
-    if isinstance(value, str) and value.strip():
-        return [value.strip()]
+    def _clean_text(text: str) -> str:
+        cleaned = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+        cleaned = re.sub(r"^\s*(?:[-*•]\s*|\d+[.)]\s*)", "", cleaned).strip()
+        return cleaned
+
+    def _looks_like_char_stream(items: List[str]) -> bool:
+        if len(items) < 6:
+            return False
+        short = 0
+        for item in items:
+            token = item.strip()
+            if len(token) <= 1:
+                short += 1
+            elif len(token) == 2 and token.endswith("."):
+                short += 1
+        return (short / len(items)) >= 0.8
+
+    def _join_char_tokens(tokens: List[str]) -> str:
+        joined = "".join(tokens)
+        joined = re.sub(r"\s+", " ", joined).strip()
+        return joined
+
+    def _normalize_text_block(text: str) -> List[str]:
+        cleaned = _clean_text(text)
+        if not cleaned:
+            return []
+        if cleaned.lower() in {"none", "n/a", "na", "null"}:
+            return []
+
+        # Handle serialized JSON/list payloads coming through as strings.
+        if cleaned[:1] in {"[", "{"} and cleaned[-1:] in {"]", "}"}:
+            try:
+                parsed = json.loads(cleaned)
+            except Exception:
+                parsed = None
+            if parsed is not None and parsed != cleaned:
+                return _normalize_suggested_edits(parsed)
+
+        raw_lines = re.split(r"\n+", cleaned)
+        lines: List[str] = []
+        for raw_line in raw_lines:
+            # Preserve explicit bullet-space rows (e.g. "-  ") as a word separator token.
+            spacer_row = bool(re.match(r"^\s*(?:[-*•]|\d+[.)])\s*$", raw_line))
+            normalized_line = _clean_text(raw_line)
+            if spacer_row and not normalized_line:
+                lines.append(" ")
+                continue
+            if normalized_line and normalized_line.lower() not in {"none", "n/a", "na", "null"}:
+                lines.append(normalized_line)
+
+        if _looks_like_char_stream(lines):
+            joined = _join_char_tokens(lines)
+            return [joined] if joined else []
+
+        if len(lines) == 1:
+            parts = [part.strip() for part in re.split(r"\s*;\s+", lines[0]) if part.strip()]
+            if len(parts) > 1 and all(len(part) > 3 for part in parts):
+                return parts
+        return lines
+
+    if isinstance(value, str):
+        return _normalize_text_block(value)
+
+    if isinstance(value, dict):
+        for key in ("suggested_edits", "suggestion", "suggestions", "edit", "text"):
+            if key in value:
+                return _normalize_suggested_edits(value.get(key))
+        return []
+
+    if isinstance(value, (list, tuple, set)):
+        if all(isinstance(item, str) for item in value):
+            raw_items = list(value)
+            if _looks_like_char_stream(raw_items):
+                joined = _join_char_tokens(raw_items)
+                if joined and joined.lower() not in {"none", "n/a", "na", "null"}:
+                    return [joined]
+
+        flattened: List[str] = []
+        for item in value:
+            flattened.extend(_normalize_suggested_edits(item))
+
+        if _looks_like_char_stream(flattened):
+            joined = _join_char_tokens(flattened)
+            flattened = [joined] if joined else []
+
+        deduped: List[str] = []
+        seen = set()
+        for item in flattened:
+            if item and item not in seen:
+                deduped.append(item)
+                seen.add(item)
+        return deduped
+
     return []
 
 
@@ -2405,6 +2612,7 @@ def _execute_mcp_review(
     run_id: str,
     workflow_type: str = "compliance_review",
     ground_truth_path: Optional[str] = None,
+    stage_callback=None,
 ) -> Dict[str, Any]:
     """Execute a compliance review through the MCP pipeline."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -2417,7 +2625,7 @@ def _execute_mcp_review(
         "run_id": run_id,
     }
 
-    result = asyncio.run(mcp_run(goal))
+    result = asyncio.run(mcp_run(goal, stage_callback=stage_callback))
     run_dir = Path(result.get("run_dir", str(output_dir)))
     audit_log = result.get("audit_log", [])
 
@@ -2461,6 +2669,7 @@ def _execute_review(
     response_path: Optional[str] = None,
     glossary_path: Optional[str] = None,
     context_paths: Optional[List[str]] = None,
+    stage_callback=None,
 ) -> Dict[str, Any]:
     mcp_documents = documents or _document_payloads_from_linear_inputs(
         policy_path=policy_path or "",
@@ -2475,6 +2684,7 @@ def _execute_review(
         run_id=run_id,
         workflow_type=workflow_type,
         ground_truth_path=ground_truth_path,
+        stage_callback=stage_callback,
     )
 
 
@@ -3886,24 +4096,57 @@ async def run_upload_submit(request: Request):
     if contract_id:
         title = f"{run_name} ({contract_id})"
 
-    try:
-        await asyncio.to_thread(
-            _execute_review,
-            title=title,
-            workflow_type=normalized_workflow,
-            documents=documents,
-            output_dir=output_dir,
-            run_id=run_id,
-        )
-    except Exception:
-        logger.exception("Run failed for %s", run_id)
-        return templates.TemplateResponse(
-            "run_upload.html",
-            _run_upload_context(request, error="Run failed while executing the agent workflow. Check logs and try again."),
-            status_code=500,
-        )
+    _execute_run_in_background(
+        run_id=run_id,
+        title=title,
+        workflow_type=normalized_workflow,
+        documents=documents,
+        output_dir=output_dir,
+    )
+    return RedirectResponse(url=f"/runs/{run_id}/progress", status_code=303)
 
-    return RedirectResponse(url=f"/runs/{run_id}", status_code=303)
+
+@app.get("/runs/{scope}/progress", response_class=HTMLResponse)
+async def run_progress_page(request: Request, scope: str):
+    status = _get_run_status(scope)
+    if status.get("status") == "complete":
+        return RedirectResponse(url=f"/runs/{scope}", status_code=303)
+    if status.get("status") == "not_found" and _load_bundle_for_scope(scope) is not None:
+        return RedirectResponse(url=f"/runs/{scope}", status_code=303)
+
+    context = _base_context(
+        request,
+        page_title=f"Run Progress · {scope}",
+        hero_title="Run In Progress",
+        hero_subtitle="Live stage updates from the agent team.",
+        active_nav="reviews",
+    )
+    context.update(
+        {
+            "run_id": scope,
+            "run_status": status,
+        }
+    )
+    return templates.TemplateResponse("run_progress.html", context)
+
+
+@app.get("/api/run-status/{scope}")
+async def run_status_api(scope: str):
+    status = _get_run_status(scope)
+    if status.get("status") == "not_found" and _load_bundle_for_scope(scope) is not None:
+        return {
+            "status": "complete",
+            "stage": "Done",
+            "stages_completed": [
+                "dispatch_intake",
+                "dispatch_extraction",
+                "dispatch_retrieval",
+                "dispatch_compliance",
+                "dispatch_qa",
+                "finalize",
+            ],
+        }
+    return status
 
 
 @app.post("/runs/{scope}/notes")
