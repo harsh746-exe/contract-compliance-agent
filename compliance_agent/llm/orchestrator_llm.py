@@ -7,27 +7,35 @@ import logging
 from compliance_agent.config import (
     ORCHESTRATOR_API_KEY,
     ORCHESTRATOR_BASE_URL,
+    ORCHESTRATOR_LLM_PROVIDER,
     ORCHESTRATOR_MAX_TOKENS,
     ORCHESTRATOR_MODEL,
     ORCHESTRATOR_TEMPERATURE,
 )
+from compliance_agent.llm.ollama import OllamaProvider
 from compliance_agent.llm.openai_compat import OpenAICompatProvider
-from compliance_agent.llm.provider import LLMRequest
+from compliance_agent.llm.provider import LLMProvider, LLMRequest
 
 logger = logging.getLogger(__name__)
 
-_cached_provider: OpenAICompatProvider | None = None
+_cached_provider: LLMProvider | None = None
 
 
-def get_orchestrator_provider() -> OpenAICompatProvider:
+def get_orchestrator_provider() -> LLMProvider:
     """Build and cache the dedicated orchestrator provider."""
     global _cached_provider
     if _cached_provider is None:
-        _cached_provider = OpenAICompatProvider(
-            api_key=ORCHESTRATOR_API_KEY,
-            model=ORCHESTRATOR_MODEL,
-            base_url=ORCHESTRATOR_BASE_URL,
-        )
+        if ORCHESTRATOR_LLM_PROVIDER == "ollama":
+            _cached_provider = OllamaProvider(
+                model=ORCHESTRATOR_MODEL,
+                base_url=ORCHESTRATOR_BASE_URL,
+            )
+        else:
+            _cached_provider = OpenAICompatProvider(
+                api_key=ORCHESTRATOR_API_KEY,
+                model=ORCHESTRATOR_MODEL,
+                base_url=ORCHESTRATOR_BASE_URL,
+            )
     return _cached_provider
 
 
@@ -37,7 +45,7 @@ async def plan_next_action(system_prompt: str, state_summary: str) -> str:
     if not provider.is_available():
         raise RuntimeError(
             "Orchestrator planner LLM is not configured. "
-            "Set ORCHESTRATOR_API_KEY or DEEPINFRA_API_KEY."
+            "Set ORCHESTRATOR_API_KEY, DEEPINFRA_API_KEY, or use LLM_PROVIDER=ollama."
         )
 
     request = LLMRequest(

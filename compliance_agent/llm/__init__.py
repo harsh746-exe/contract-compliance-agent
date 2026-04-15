@@ -7,6 +7,7 @@ from typing import Optional
 
 from .. import config
 from .deepinfra import DeepInfraProvider
+from .ollama import OllamaProvider
 from .openai_compat import OpenAICompatProvider
 from .provider import LLMProvider, LLMRequest, LLMResponse
 
@@ -32,6 +33,11 @@ def get_provider(preferred: Optional[str] = None) -> LLMProvider:
     if _cached_provider is not None and _cached_provider_name == provider_name:
         return _cached_provider
 
+    ollama_provider = OllamaProvider(
+        model=config.OLLAMA_MODEL,
+        base_url=config.OLLAMA_BASE_URL,
+        timeout=float(config.LLM_TIMEOUT),
+    )
     deepinfra_provider = DeepInfraProvider(
         api_key=config.DEEPINFRA_API_KEY,
         base_url=config.DEEPINFRA_BASE_URL,
@@ -44,6 +50,11 @@ def get_provider(preferred: Optional[str] = None) -> LLMProvider:
         timeout=float(config.LLM_TIMEOUT),
     )
 
+    if provider_name == "ollama" and ollama_provider.is_available():
+        logger.info("Selected LLM provider=%s model=%s", "ollama", config.LLM_MODEL)
+        _cached_provider = ollama_provider
+        _cached_provider_name = provider_name
+        return _cached_provider
     if provider_name == "deepinfra" and deepinfra_provider.is_available():
         logger.info("Selected LLM provider=%s model=%s", "deepinfra", config.LLM_MODEL)
         _cached_provider = deepinfra_provider
@@ -52,6 +63,11 @@ def get_provider(preferred: Optional[str] = None) -> LLMProvider:
     if provider_name == "openai" and openai_provider.is_available():
         logger.info("Selected LLM provider=%s model=%s", "openai", config.LLM_MODEL)
         _cached_provider = openai_provider
+        _cached_provider_name = provider_name
+        return _cached_provider
+    if ollama_provider.is_available():
+        logger.info("Preferred LLM provider '%s' unavailable; falling back to ollama", provider_name)
+        _cached_provider = ollama_provider
         _cached_provider_name = provider_name
         return _cached_provider
     if deepinfra_provider.is_available():

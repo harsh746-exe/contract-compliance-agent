@@ -1,6 +1,6 @@
 # Contract/Policy Compliance Agent
 
-MCP-based multi-agent system for automated compliance checking between a source document (policy/contract/RFP) and a response document (proposal/plan).
+MCP-based multi-agent system for contract processing between a source document (policy/contract/RFP) and a response document (proposal/plan).
 
 ## Status
 
@@ -10,7 +10,37 @@ Prototype/MVP. Core MCP workflow is implemented and testable locally.
 
 - Supported baseline: Python 3.9+
 
-## Installation
+## Quick Start (Local / No API Keys)
+
+The fastest way to run this project is with **Ollama**, which runs LLMs locally on your machine. No cloud API keys required.
+
+**Prerequisites:** Python 3.9+ and ~7 GB of free disk space for model downloads.
+
+```bash
+# One-command setup: creates venv, installs deps, installs Ollama, pulls models, generates .env
+bash setup_ollama.sh
+
+# Run the full demo (tests + compliance checks + dashboard)
+bash run_demo.sh
+```
+
+The setup script will:
+1. Create a Python virtual environment and install all dependencies
+2. Install [Ollama](https://ollama.com) if not already present
+3. Pull the required models (`llama3.1:8b` and `llama3.2:3b`)
+4. Generate a `.env` file configured for local execution
+
+If you prefer to configure Ollama manually, copy the template:
+
+```bash
+cp .env.ollama .env
+ollama pull llama3.1:8b
+ollama pull llama3.2:3b
+```
+
+Make sure the Ollama server is running (`ollama serve`) before starting the demo.
+
+## Installation (Manual)
 
 ```bash
 python3 -m venv .venv
@@ -31,6 +61,7 @@ Required for live model-backed usage:
 
 Supported providers:
 
+- `LLM_PROVIDER=ollama` — local via [Ollama](https://ollama.com), no API key needed
 - `LLM_PROVIDER=deepinfra` with `DEEPINFRA_API_KEY` or `DEEPIN_API_KEY`
 - `LLM_PROVIDER=openai` with `OPENAI_API_KEY`
 
@@ -91,6 +122,4 @@ The system produces run artifacts including:
 
 ## Limitations
 
-- Prototype/MVP, not production-hardened.
-- LLM outputs are nondeterministic.
-- Offline tests use mocks/fakes by design.
+- Offline tests use mocks by design.

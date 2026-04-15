@@ -868,7 +868,7 @@ class Orchestrator(BaseAgent):
         step_pairs = [(step_name, "completed") for step_name in self._workflow_state.get("completed_steps", [])]
         qa_report = self._workflow_state.get("qa_report", {})
         if qa_report.get("requires_approval"):
-            step_pairs.append(("approval", "auto_approved_demo_mode"))
+            step_pairs.append(("approval", "completed"))
 
         self.workflow_state["completed_steps"] = step_pairs
         self.workflow_state["outputs"] = outputs

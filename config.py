@@ -21,38 +21,59 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+# Ollama (local) configuration — no API key required
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+
+def _default_for_provider(deepinfra_val: str, openai_val: str, ollama_val: str) -> str:
+    if LLM_PROVIDER == "ollama":
+        return ollama_val
+    if LLM_PROVIDER == "openai":
+        return openai_val
+    return deepinfra_val
+
 LLM_API_KEY = os.getenv(
     "LLM_API_KEY",
-    DEEPINFRA_API_KEY if LLM_PROVIDER == "deepinfra" else OPENAI_API_KEY,
+    _default_for_provider(DEEPINFRA_API_KEY, OPENAI_API_KEY, "ollama"),
 )
 LLM_BASE_URL = os.getenv(
     "LLM_BASE_URL",
-    DEEPINFRA_BASE_URL if LLM_PROVIDER == "deepinfra" else OPENAI_BASE_URL,
+    _default_for_provider(DEEPINFRA_BASE_URL, OPENAI_BASE_URL, OLLAMA_BASE_URL),
 )
 LLM_MODEL = os.getenv(
     "LLM_MODEL",
-    DEEPINFRA_MODEL if LLM_PROVIDER == "deepinfra" else OPENAI_MODEL,
+    _default_for_provider(DEEPINFRA_MODEL, OPENAI_MODEL, OLLAMA_MODEL),
 )
 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
-LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "60"))
+LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "120" if LLM_PROVIDER == "ollama" else "60"))
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
 LLM_BACKOFF_BASE = float(os.getenv("LLM_BACKOFF_BASE", "2.0"))
 
 # Orchestrator planning model.
 # DeepInfra currently exposes Gemma 3 (`google/gemma-3-27b-it`) on the
 # OpenAI-compatible endpoint, so this remains the default until Gemma 4 lands.
-ORCHESTRATOR_LLM_PROVIDER = os.getenv("ORCHESTRATOR_LLM_PROVIDER", "google_gemma")
-ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "google/gemma-3-27b-it")
-ORCHESTRATOR_BASE_URL = os.getenv("ORCHESTRATOR_BASE_URL", "https://api.deepinfra.com/v1/openai")
-ORCHESTRATOR_API_KEY = os.getenv("ORCHESTRATOR_API_KEY", DEEPINFRA_API_KEY)
+_orch_provider_default = "ollama" if LLM_PROVIDER == "ollama" else "google_gemma"
+ORCHESTRATOR_LLM_PROVIDER = os.getenv("ORCHESTRATOR_LLM_PROVIDER", _orch_provider_default).strip().lower()
+ORCHESTRATOR_MODEL = os.getenv(
+    "ORCHESTRATOR_MODEL",
+    "llama3.2:3b" if ORCHESTRATOR_LLM_PROVIDER == "ollama" else "google/gemma-3-27b-it",
+)
+ORCHESTRATOR_BASE_URL = os.getenv(
+    "ORCHESTRATOR_BASE_URL",
+    OLLAMA_BASE_URL if ORCHESTRATOR_LLM_PROVIDER == "ollama" else "https://api.deepinfra.com/v1/openai",
+)
+ORCHESTRATOR_API_KEY = os.getenv(
+    "ORCHESTRATOR_API_KEY",
+    "ollama" if ORCHESTRATOR_LLM_PROVIDER == "ollama" else DEEPINFRA_API_KEY,
+)
 ORCHESTRATOR_TEMPERATURE = float(os.getenv("ORCHESTRATOR_TEMPERATURE", "0.3"))
 ORCHESTRATOR_MAX_TOKENS = int(os.getenv("ORCHESTRATOR_MAX_TOKENS", "1024"))
 
-_DEFAULT_FAST_MODEL = OPENAI_MODEL if LLM_PROVIDER == "openai" else "meta-llama/Meta-Llama-3.1-8B-Instruct"
-_DEFAULT_STANDARD_MODEL = OPENAI_MODEL if LLM_PROVIDER == "openai" else DEEPINFRA_MODEL
-_DEFAULT_STRONG_MODEL = OPENAI_MODEL if LLM_PROVIDER == "openai" else DEEPINFRA_MODEL
+_DEFAULT_FAST_MODEL = _default_for_provider("meta-llama/Meta-Llama-3.1-8B-Instruct", OPENAI_MODEL, "llama3.2:3b")
+_DEFAULT_STANDARD_MODEL = _default_for_provider(DEEPINFRA_MODEL, OPENAI_MODEL, OLLAMA_MODEL)
+_DEFAULT_STRONG_MODEL = _default_for_provider(DEEPINFRA_MODEL, OPENAI_MODEL, OLLAMA_MODEL)
 
 LLM_TIERS = {
     "none": None,
